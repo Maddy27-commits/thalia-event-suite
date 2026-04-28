@@ -1,0 +1,5 @@
+# Cloudflare Pages — SPA routing
+# Any path that isn't a real file or a Pages Function gets served index.html
+# so React Router can handle the navigation client-side.
+/api/*  /api/:splat  200
+/*      /index.html  200

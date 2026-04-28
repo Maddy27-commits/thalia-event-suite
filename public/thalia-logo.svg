@@ -1,0 +1,132 @@
+<svg width="680" height="420" viewBox="0 0 680 420" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>Thalia — Event Studio logo</title>
+<desc>Logo for Thalia event management platform. A stylized botanical bloom at center, encircled by a laurel wreath, with elegant serif wordmark below and gold tagline details.</desc>
+
+<!-- Background plate -->
+<rect x="0" y="0" width="680" height="420" fill="#FAF8F4"/>
+<rect x="110" y="22" width="460" height="376" rx="20" fill="#FFFFFF" stroke="#E8D5BA" stroke-width="1"/>
+
+<!-- ── LAUREL WREATH — LEFT SIDE ── -->
+<g fill="#7A8C6E">
+  <ellipse cx="231" cy="220" rx="14" ry="6" transform="rotate(-50 231 220)"/>
+  <ellipse cx="220" cy="200" rx="14" ry="5.5" transform="rotate(-38 220 200)"/>
+  <ellipse cx="215" cy="179" rx="14" ry="5.5" transform="rotate(-25 215 179)"/>
+  <ellipse cx="215" cy="158" rx="14" ry="5" transform="rotate(-12 215 158)"/>
+  <ellipse cx="222" cy="138" rx="14" ry="5" transform="rotate(4 222 138)"/>
+  <ellipse cx="234" cy="121" rx="14" ry="5" transform="rotate(18 234 121)"/>
+  <ellipse cx="250" cy="108" rx="13" ry="5" transform="rotate(33 250 108)"/>
+  <ellipse cx="269" cy="98" rx="13" ry="5" transform="rotate(47 269 98)"/>
+  <ellipse cx="291" cy="91" rx="13" ry="5" transform="rotate(61 291 91)"/>
+  <ellipse cx="314" cy="88" rx="12" ry="5" transform="rotate(74 314 88)"/>
+</g>
+<!-- Left stem lines -->
+<path d="M340 244 Q280 242 228 220" fill="none" stroke="#7A8C6E" stroke-width="1.5" stroke-opacity="0.45"/>
+<path d="M340 89 Q295 88 238 108" fill="none" stroke="#7A8C6E" stroke-width="1.5" stroke-opacity="0.45"/>
+
+<!-- ── LAUREL WREATH — RIGHT SIDE ── -->
+<g fill="#7A8C6E">
+  <ellipse cx="449" cy="220" rx="14" ry="6" transform="rotate(50 449 220)"/>
+  <ellipse cx="460" cy="200" rx="14" ry="5.5" transform="rotate(38 460 200)"/>
+  <ellipse cx="465" cy="179" rx="14" ry="5.5" transform="rotate(25 465 179)"/>
+  <ellipse cx="465" cy="158" rx="14" ry="5" transform="rotate(12 465 158)"/>
+  <ellipse cx="458" cy="138" rx="14" ry="5" transform="rotate(-4 458 138)"/>
+  <ellipse cx="446" cy="121" rx="14" ry="5" transform="rotate(-18 446 121)"/>
+  <ellipse cx="430" cy="108" rx="13" ry="5" transform="rotate(-33 430 108)"/>
+  <ellipse cx="411" cy="98" rx="13" ry="5" transform="rotate(-47 411 98)"/>
+  <ellipse cx="389" cy="91" rx="13" ry="5" transform="rotate(-61 389 91)"/>
+  <ellipse cx="366" cy="88" rx="12" ry="5" transform="rotate(-74 366 88)"/>
+</g>
+<!-- Right stem lines -->
+<path d="M340 244 Q400 242 452 220" fill="none" stroke="#7A8C6E" stroke-width="1.5" stroke-opacity="0.45"/>
+<path d="M340 89 Q385 88 442 108" fill="none" stroke="#7A8C6E" stroke-width="1.5" stroke-opacity="0.45"/>
+
+<!-- ── BOTTOM WREATH BOW ── -->
+<path d="M294 244 Q317 256 340 252 Q363 256 386 244" fill="none" stroke="#B8956A" stroke-width="2" stroke-linecap="round"/>
+<circle cx="340" cy="252" r="3.5" fill="#B8956A"/>
+<path d="M294 244 Q274 251 262 247" fill="none" stroke="#B8956A" stroke-width="1.5" stroke-linecap="round"/>
+<path d="M386 244 Q406 251 418 247" fill="none" stroke="#B8956A" stroke-width="1.5" stroke-linecap="round"/>
+
+<!-- ── CENTRAL BLOOM MARK ── -->
+<!-- Outer decorative ring -->
+<circle cx="340" cy="166" r="63" fill="none" stroke="#E0DBD4" stroke-width="0.8"/>
+<circle cx="340" cy="166" r="56" fill="none" stroke="#E8D5BA" stroke-width="0.5"/>
+
+<!-- Large background petals (very soft) -->
+<g fill="#B8956A" opacity="0.12">
+  <ellipse cx="340" cy="130" rx="11" ry="26"/>
+  <ellipse cx="340" cy="130" rx="11" ry="26" transform="rotate(45 340 166)"/>
+  <ellipse cx="340" cy="130" rx="11" ry="26" transform="rotate(90 340 166)"/>
+  <ellipse cx="340" cy="130" rx="11" ry="26" transform="rotate(135 340 166)"/>
+  <ellipse cx="340" cy="130" rx="11" ry="26" transform="rotate(180 340 166)"/>
+  <ellipse cx="340" cy="130" rx="11" ry="26" transform="rotate(225 340 166)"/>
+  <ellipse cx="340" cy="130" rx="11" ry="26" transform="rotate(270 340 166)"/>
+  <ellipse cx="340" cy="130" rx="11" ry="26" transform="rotate(315 340 166)"/>
+</g>
+
+<!-- Mid petals -->
+<g fill="#B8956A" opacity="0.28">
+  <ellipse cx="340" cy="145" rx="8" ry="18"/>
+  <ellipse cx="340" cy="145" rx="8" ry="18" transform="rotate(60 340 166)"/>
+  <ellipse cx="340" cy="145" rx="8" ry="18" transform="rotate(120 340 166)"/>
+  <ellipse cx="340" cy="145" rx="8" ry="18" transform="rotate(180 340 166)"/>
+  <ellipse cx="340" cy="145" rx="8" ry="18" transform="rotate(240 340 166)"/>
+  <ellipse cx="340" cy="145" rx="8" ry="18" transform="rotate(300 340 166)"/>
+</g>
+
+<!-- Inner petals -->
+<g fill="#B8956A" opacity="0.5">
+  <ellipse cx="340" cy="152" rx="5.5" ry="12"/>
+  <ellipse cx="340" cy="152" rx="5.5" ry="12" transform="rotate(72 340 166)"/>
+  <ellipse cx="340" cy="152" rx="5.5" ry="12" transform="rotate(144 340 166)"/>
+  <ellipse cx="340" cy="152" rx="5.5" ry="12" transform="rotate(216 340 166)"/>
+  <ellipse cx="340" cy="152" rx="5.5" ry="12" transform="rotate(288 340 166)"/>
+</g>
+
+<!-- Center disc glow -->
+<circle cx="340" cy="166" r="20" fill="#B8956A" opacity="0.14"/>
+<circle cx="340" cy="166" r="13" fill="#B8956A" opacity="0.45"/>
+<!-- Center dot -->
+<circle cx="340" cy="166" r="6" fill="#2C2420"/>
+<!-- Center highlight -->
+<circle cx="338" cy="164" r="2" fill="#FAF8F4" opacity="0.5"/>
+
+<!-- ── WORDMARK ── -->
+<text
+  x="340" y="302"
+  font-family="'Cormorant Garamond', 'Palatino Linotype', Palatino, Georgia, serif"
+  font-size="56"
+  font-weight="500"
+  fill="#1A1714"
+  text-anchor="middle"
+  letter-spacing="10">THALIA</text>
+
+<!-- Decorative flanking lines around tagline -->
+<line x1="163" y1="323" x2="260" y2="323" stroke="#B8956A" stroke-width="0.6"/>
+<line x1="420" y1="323" x2="517" y2="323" stroke="#B8956A" stroke-width="0.6"/>
+
+<!-- Star ornaments -->
+<text x="275" y="327" font-family="Georgia, serif" font-size="9" fill="#B8956A" text-anchor="middle">✦</text>
+<text x="405" y="327" font-family="Georgia, serif" font-size="9" fill="#B8956A" text-anchor="middle">✦</text>
+
+<!-- Tagline -->
+<text
+  x="340" y="327"
+  font-family="'DM Sans', 'Gill Sans', Helvetica, sans-serif"
+  font-size="10"
+  font-weight="300"
+  fill="#6B6560"
+  text-anchor="middle"
+  letter-spacing="4">EVENT STUDIO</text>
+
+<!-- Italic greek attribution -->
+<text
+  x="340" y="360"
+  font-family="'Cormorant Garamond', Georgia, serif"
+  font-size="14"
+  font-style="italic"
+  font-weight="400"
+  fill="#B8956A"
+  text-anchor="middle"
+  letter-spacing="1.5">Muse of celebration</text>
+
+</svg>

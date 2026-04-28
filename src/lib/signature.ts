@@ -1,8 +1,6 @@
 /**
  * ─────────────────────────────────────────────────────────────────────────────
  *  Personal developer signature — Madhura Banerjee
- *  Included in every project. Prints to browser console so technical
- *  reviewers who open DevTools see it immediately.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -16,10 +14,7 @@ export const SIGNATURE = {
   year:      new Date().getFullYear(),
 } as const
 
-/**
- * Prints a branded signature to the browser console.
- * Open DevTools → Console on any page to see it.
- */
+/** Prints a branded signature to the browser console. */
 export function printSignature(): void {
   const line  = '─'.repeat(52)
   const stack = SIGNATURE.stack.join(' · ')

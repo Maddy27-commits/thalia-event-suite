@@ -4,8 +4,6 @@ import App from './App'
 import './index.css'
 import { printSignature } from './lib/signature'
 
-// Prints developer signature to the browser console.
-// Open DevTools → Console to see it.
 printSignature()
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

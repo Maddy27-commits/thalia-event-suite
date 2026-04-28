@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Wand2, Sparkles, Key, ChevronDown, ChevronUp } from 'lucide-react'
+import { Wand2, Sparkles, ChevronDown, ChevronUp } from 'lucide-react'
 import { useStore } from '../../store'
 import { Button } from '../../components/ui/Button'
 import { Input, Textarea, Select } from '../../components/ui/Input'
@@ -236,7 +236,7 @@ function ConceptBoard({ concept, index, onShare }: { concept: EventConcept; inde
 
 // ─── Page ──────────────────────────────────────────────────────────────────────
 export function AIGeneratorPage() {
-  const { apiKey, events, activeEventId, addConcept, setIsGenerating, isGenerating, shareConceptWithClient } = useStore()
+  const { events, activeEventId, addConcept, setIsGenerating, isGenerating, shareConceptWithClient } = useStore()
   const activeEvent = events.find(e => e.id === activeEventId)
 
   const [form, setForm] = useState<ConceptGeneratorInput>({
@@ -269,8 +269,7 @@ export function AIGeneratorPage() {
     }))
 
   const handleGenerate = async () => {
-    if (!apiKey)        { setError('Set your Claude API key in the header first.'); return }
-    if (!targetEventId) { setError('Select an event to attach concepts to.');       return }
+    if (!targetEventId) { setError('Select an event to attach concepts to.'); return }
 
     setError('')
     setGeneratedConcepts([])
@@ -278,14 +277,14 @@ export function AIGeneratorPage() {
 
     try {
       const batch: EventConcept[] = []
-      await generateEventConcepts(form, apiKey, (concept) => {
+      await generateEventConcepts(form, '', (concept) => {
         const c = { ...concept, eventId: targetEventId }
         batch.push(c)
         setGeneratedConcepts([...batch])
       })
       batch.forEach(c => addConcept(targetEventId, c))
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Generation failed. Check your API key and try again.')
+      setError(e instanceof Error ? e.message : 'Generation failed. Please try again.')
     } finally {
       setIsGenerating(false)
     }
@@ -305,12 +304,6 @@ export function AIGeneratorPage() {
             <p className="font-bold text-stone-900 text-sm">AI Generator</p>
             <p className="text-[11px] text-stone-400">3 bespoke concepts</p>
           </div>
-          {!apiKey && (
-            <div className="ml-auto flex items-center gap-1 bg-amber-50 text-amber-600 text-[10px] px-2 py-1 rounded-lg font-semibold ring-1 ring-amber-200">
-              <Key size={10} />
-              No key
-            </div>
-          )}
         </div>
 
         {/* Event details */}

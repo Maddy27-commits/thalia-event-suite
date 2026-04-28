@@ -57,7 +57,6 @@ function timeAgo(iso: string): string {
 
 export function TaskDrawer({ event, ceremony, sub, task, onClose }: TaskDrawerProps) {
   const {
-    apiKey,
     setTaskPhase, addTaskMessage, deleteTaskMessage, updateTaskMessage,
     addTaskOption, updateTaskOption, deleteTaskOption,
     toggleSubCategoryTask, updateSubCategoryTask, deleteSubCategoryTask,
@@ -163,7 +162,7 @@ export function TaskDrawer({ event, ceremony, sub, task, onClose }: TaskDrawerPr
             ceremonyName: ceremony.name,
             clientName: event.clientName,
           },
-          apiKey,
+          '',
         )
         updateTaskMessage(event.id, ceremony.id, sub.id, task.id, id, { insight })
       } finally {
@@ -569,9 +568,7 @@ export function TaskDrawer({ event, ceremony, sub, task, onClose }: TaskDrawerPr
             </div>
           </div>
           <p className="text-[10px] text-stone-400 mt-1.5">
-            {apiKey
-              ? 'AI extraction uses Claude — preferences, concerns, sentiment surface as chips on the message.'
-              : 'Tip: add an Anthropic API key in Settings for richer AI insight extraction.'}
+            AI extraction uses Claude — preferences, concerns, and sentiment surface as chips on the message.
           </p>
         </div>
       </div>

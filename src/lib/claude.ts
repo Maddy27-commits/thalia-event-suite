@@ -192,7 +192,7 @@ export async function extractTaskInsight(
   context: ExtractContext,
   apiKey: string
 ): Promise<TaskInsight> {
-  if (!apiKey || !content.trim()) return localExtractInsight(content)
+  if (!content.trim()) return localExtractInsight(content)
 
   const prompt = `You are an experienced event-planning assistant analysing a client message.
 

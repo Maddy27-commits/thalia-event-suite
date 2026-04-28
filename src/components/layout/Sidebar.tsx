@@ -58,24 +58,26 @@ export function Sidebar({ onClose }: SidebarProps) {
         isPlanner ? 'border-b border-white/[0.07]' : 'border-b border-stone-100'
       )}>
         <div className="flex items-center gap-3">
+          {/* Geometric star mark */}
           <div className={cn(
-            'w-9 h-9 rounded-xl flex items-center justify-center shadow-md shrink-0',
+            'w-9 h-9 rounded-xl flex items-center justify-center shrink-0',
             isPlanner
-              ? 'bg-white/[0.08] ring-1 ring-white/10'
-              : 'bg-brand-50 ring-1 ring-brand-100',
+              ? 'bg-gradient-to-br from-brand-500/20 to-plum-500/10 ring-1 ring-brand-400/20'
+              : 'bg-gradient-to-br from-brand-50 to-brand-100/60 ring-1 ring-brand-200/60',
           )}>
-            <ThaliaBloomMark size={28} />
+            <ThaliaBloomMark size={22} dark={isPlanner} />
           </div>
           <div>
+            {/* Bold Inter wordmark — modern, not serif */}
             <p className={cn(
-              'font-display font-semibold text-lg leading-none tracking-wide',
+              'text-[17px] font-extrabold leading-none tracking-[-0.03em]',
               isPlanner ? 'text-white' : 'text-stone-900'
             )}>
               Thalia
             </p>
             <p className={cn(
-              'text-[10px] mt-0.5 font-medium tracking-widest uppercase',
-              isPlanner ? 'text-brand-400/70' : 'text-stone-400'
+              'text-[9px] mt-1 font-semibold tracking-[0.15em] uppercase',
+              isPlanner ? 'text-brand-400/60' : 'text-stone-400'
             )}>
               {isPlanner ? 'Planner Suite' : 'Client Portal'}
             </p>

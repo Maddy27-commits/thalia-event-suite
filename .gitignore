@@ -34,3 +34,6 @@ lerna-debug.log*
 # Vercel / Netlify caches
 .vercel
 .netlify
+
+# Claude editor local settings (not for version control)
+.claude/

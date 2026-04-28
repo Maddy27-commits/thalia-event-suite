@@ -15,10 +15,10 @@
  *   - If the KV binding (RATE_LIMITER) is not configured, rate limiting is
  *     skipped gracefully so the function still works during initial setup.
  *
- * SETUP CHECKLIST (one-time, in Cloudflare dashboard):
+ * SETUP (one-time, in Cloudflare dashboard):
  *   1. Add secret:   Settings → Environment variables → ANTHROPIC_API_KEY
  *   2. Create KV:    Workers & Pages → KV → Create namespace "RATE_LIMITER"
- *   3. Bind KV:      Your Pages project → Settings → Functions →
+ *   3. Bind KV:      Pages project → Settings → Functions →
  *                    KV namespace bindings → variable name: RATE_LIMITER
  */
 

@@ -324,12 +324,12 @@ export function SettingsPage() {
   const isPlanner = role === 'planner'
 
   return (
-    <div className="p-8 max-w-2xl animate-fade-in">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-2xl animate-fade-in">
       {/* Logo hero strip */}
-      <div className="flex items-center gap-6 mb-8 pb-7 border-b border-stone-100">
-        <ThaliaFullLogo width={130} className="shrink-0" />
+      <div className="flex items-center gap-4 sm:gap-6 mb-6 sm:mb-8 pb-6 sm:pb-7 border-b border-stone-100">
+        <ThaliaFullLogo width={110} className="shrink-0" />
         <div>
-          <h1 className="text-2xl font-bold text-stone-900">
+          <h1 className="text-xl sm:text-2xl font-bold text-stone-900">
             {isPlanner ? 'Planner Settings' : 'My Profile'}
           </h1>
           <p className="text-stone-500 mt-1 text-sm">

@@ -13,10 +13,10 @@ export function ProgressPage() {
   const completedCount = event.milestones.filter((m) => m.completed).length
 
   return (
-    <div className="p-8 space-y-6 animate-fade-in">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-5 sm:space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold text-stone-900">Planning Progress</h1>
-        <p className="text-stone-500 text-sm mt-0.5">
+        <h1 className="text-xl sm:text-2xl font-bold text-stone-900">Planning Progress</h1>
+        <p className="text-stone-400 text-sm mt-0.5">
           Track every step toward your perfect event.
         </p>
       </div>

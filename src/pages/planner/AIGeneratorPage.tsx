@@ -291,13 +291,13 @@ export function AIGeneratorPage() {
   }
 
   return (
-    <div className="flex h-full overflow-hidden">
+    <div className="flex flex-col md:flex-row h-full overflow-hidden">
 
       {/* ── Left: input panel (scrollable) ── */}
-      <div className="w-80 shrink-0 border-r border-stone-100 overflow-y-auto p-6 space-y-5">
+      <div className="md:w-80 shrink-0 border-b md:border-b-0 md:border-r border-stone-100 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-5 max-h-[45vh] md:max-h-none">
 
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center shadow-brand-sm">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-plum-500 to-plum-700 flex items-center justify-center shadow-plum-sm">
             <Wand2 size={15} className="text-white" />
           </div>
           <div>
@@ -394,13 +394,18 @@ export function AIGeneratorPage() {
           </div>
         )}
 
-        <Button className="w-full" loading={isGenerating} icon={<Sparkles size={15} />} onClick={handleGenerate}>
+        <Button
+          className="w-full bg-gradient-to-r from-plum-600 to-plum-500 hover:from-plum-700 hover:to-plum-600 shadow-plum-sm hover:shadow-plum-md text-white border-0"
+          loading={isGenerating}
+          icon={<Sparkles size={15} />}
+          onClick={handleGenerate}
+        >
           {isGenerating ? 'Generating…' : 'Generate 3 Concepts'}
         </Button>
       </div>
 
       {/* ── Right: mood board output (scrollable) ── */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto min-h-0">
 
         {/* Loading */}
         {isGenerating && generatedConcepts.length === 0 && (

@@ -1379,16 +1379,17 @@ export function EventsPage() {
   const [createOpen, setCreateOpen] = useState(false)
 
   return (
-    <div className="p-8 space-y-5 animate-fade-in">
-      <div className="flex items-center justify-between">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-5 animate-fade-in">
+      <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-stone-900">Events</h1>
-          <p className="text-stone-500 text-sm mt-0.5">
-            {events.length} event{events.length !== 1 ? 's' : ''} · Hierarchical ceremonies → sub-elements → tasks
+          <h1 className="text-xl sm:text-2xl font-bold text-stone-900">Events</h1>
+          <p className="text-stone-400 text-sm mt-0.5">
+            {events.length} event{events.length !== 1 ? 's' : ''}
           </p>
         </div>
-        <Button icon={<Plus size={15} />} onClick={() => setCreateOpen(true)}>
-          New Event
+        <Button icon={<Plus size={15} />} onClick={() => setCreateOpen(true)} size="sm" className="sm:text-sm sm:px-4 sm:py-2 shrink-0">
+          <span className="hidden xs:inline">New Event</span>
+          <span className="xs:hidden">New</span>
         </Button>
       </div>
 

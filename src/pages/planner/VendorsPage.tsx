@@ -80,13 +80,16 @@ export function VendorsPage() {
   })
 
   return (
-    <div className="p-8 space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-5 sm:space-y-6 animate-fade-in">
+      <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-stone-900">Vendors</h1>
-          <p className="text-stone-500 text-sm mt-0.5">{vendors.length} vendor{vendors.length !== 1 ? 's' : ''} in your network</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-stone-900">Vendors</h1>
+          <p className="text-stone-400 text-sm mt-0.5">{vendors.length} vendor{vendors.length !== 1 ? 's' : ''} in your network</p>
         </div>
-        <Button icon={<Plus size={16} />} onClick={openCreate}>Add Vendor</Button>
+        <Button icon={<Plus size={15} />} onClick={openCreate} size="sm" className="sm:text-sm sm:px-4 sm:py-2">
+          <span className="hidden xs:inline">Add Vendor</span>
+          <span className="xs:hidden">Add</span>
+        </Button>
       </div>
 
       {/* Filters */}

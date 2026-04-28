@@ -79,7 +79,7 @@ export function ConceptsPage() {
   const pendingCount = sharedConcepts.filter((c) => c.status === 'pending').length
 
   return (
-    <div className="p-8 space-y-6 animate-fade-in">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-5 sm:space-y-6 animate-fade-in">
       <div>
         <h1 className="text-2xl font-bold text-stone-900">Design Concepts</h1>
         <p className="text-stone-400 text-sm mt-0.5">

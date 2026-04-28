@@ -16,14 +16,14 @@
  *     skipped gracefully so the function still works during initial setup.
  *
  * SETUP (one-time, in Cloudflare dashboard):
- *   1. Add secret:   Settings → Environment variables → ANTHROPIC_API_KEY
+ *   1. Add secret:   Settings → Environment variables → MADDY_API_KEY
  *   2. Create KV:    Workers & Pages → KV → Create namespace "RATE_LIMITER"
  *   3. Bind KV:      Pages project → Settings → Functions →
  *                    KV namespace bindings → variable name: RATE_LIMITER
  */
 
 interface Env {
-  ANTHROPIC_API_KEY: string
+  MADDY_API_KEY: string
   RATE_LIMITER?: KVNamespace // optional — rate limiting skipped if not bound
 }
 
@@ -38,7 +38,7 @@ const ALLOWED_MODELS = [
 // ─── Handler ──────────────────────────────────────────────────────────────────
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   // ── 1. Check server-side key is configured ──────────────────────────────────
-  if (!env.ANTHROPIC_API_KEY) {
+  if (!env.MADDY_API_KEY) {
     return json(
       { error: 'Service temporarily unavailable. Please try again later.' },
       503,
@@ -97,7 +97,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': env.ANTHROPIC_API_KEY,   // ← only lives here, at runtime
+        'x-api-key': env.MADDY_API_KEY,   // ← only lives here, at runtime
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({ model, max_tokens, messages }),

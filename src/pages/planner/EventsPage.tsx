@@ -4,8 +4,9 @@ import {
   Bell, ChevronDown, ChevronUp, Check, AlertCircle, Edit2,
   X, Circle, Sparkles, ListChecks, Store, Star, Phone, Mail,
   ArrowRight, ArrowLeft, Heart, Building2, Cake, GraduationCap,
-  PartyPopper, Briefcase, Trophy, MicVocal, MessageSquare,
+  PartyPopper, Briefcase, Trophy, MicVocal, MessageSquare, Eye,
 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { useStore, getDefaultCeremonies, offsetFor } from '../../store'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
@@ -787,7 +788,8 @@ function VendorAssignment({ event }: { event: Event }) {
 
 // ─── Single event card ─────────────────────────────────────────────────────────
 function EventCard({ event }: { event: Event }) {
-  const { updateEvent, deleteEvent, setActiveEvent, activeEventId } = useStore()
+  const { updateEvent, deleteEvent, setActiveEvent, activeEventId, enterPreviewMode } = useStore()
+  const navigate = useNavigate()
   const [expanded, setExpanded] = useState(activeEventId === event.id)
   const [activeTab, setActiveTab] = useState<'checklist' | 'timeline'>('checklist')
   const [editingDetails, setEditingDetails] = useState(false)
@@ -944,6 +946,18 @@ function EventCard({ event }: { event: Event }) {
               >
                 <Bell size={11} />
                 {pendingApproval > 0 ? `Remind client (${pendingApproval})` : 'Remind client'}
+              </button>
+
+              <button
+                onClick={() => {
+                  enterPreviewMode(event.id, event.clientName, event.clientEmail)
+                  navigate('/client')
+                }}
+                className="flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-full border border-plum-200 text-plum-600 bg-plum-50 hover:bg-plum-100 transition-all"
+                title="Preview client view"
+              >
+                <Eye size={11} />
+                Client view
               </button>
 
               <button onClick={() => setDeleteConfirm(true)}

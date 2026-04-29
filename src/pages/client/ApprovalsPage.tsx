@@ -1,8 +1,7 @@
-import { Check, X, MessageSquare, Clock, Sparkles } from 'lucide-react'
+import { Check, X, MessageSquare, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 import { useStore } from '../../store'
 import { useClientEvent } from '../../hooks/useClientEvent'
-import { Card, CardBody } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
@@ -12,8 +11,9 @@ import type { EventConcept, ConceptStatus } from '../../types'
 export function ApprovalsPage() {
   const { updateConceptStatus } = useStore()
   const { event } = useClientEvent()
-  const [selected, setSelected] = useState<{ concept: EventConcept; action: 'approve' | 'reject' | 'revise' } | null>(null)
-  const [comment, setComment]   = useState('')
+  const [selected, setSelected]   = useState<{ concept: EventConcept; action: 'approve' | 'reject' | 'revise' } | null>(null)
+  const [comment, setComment]     = useState('')
+  const [pendingIdx, setPendingIdx] = useState(0)
 
   if (!event) return null
 
@@ -21,75 +21,29 @@ export function ApprovalsPage() {
   const pending = shared.filter(c => c.status === 'pending')
   const decided = shared.filter(c => c.status !== 'pending')
 
+  // Clamp index
+  const safePendingIdx = Math.min(pendingIdx, Math.max(0, pending.length - 1))
+  const current = pending[safePendingIdx]
+
   const submit = () => {
     if (!selected) return
     const map: Record<string, ConceptStatus> = { approve: 'approved', reject: 'rejected', revise: 'revised' }
     updateConceptStatus(event.id, selected.concept.id, map[selected.action] as ConceptStatus, comment)
     setSelected(null)
     setComment('')
+    // Move to next pending (index stays, list shrinks, so next one slides in)
   }
 
-  // Status colour config
-  const decisionStyle = {
-    approved: { badge: 'success' as const, dot: 'bg-sage-400' },
-    rejected: { badge: 'danger'  as const, dot: 'bg-red-400'  },
-    revised:  { badge: 'info'    as const, dot: 'bg-sky-400'  },
-    pending:  { badge: 'warning' as const, dot: 'bg-amber-400'},
+  // Status badge
+  const decisionBadge: Record<string, 'success' | 'danger' | 'info' | 'warning'> = {
+    approved: 'success',
+    rejected: 'danger',
+    revised:  'info',
+    pending:  'warning',
   }
-
-  const ConceptRow = ({ concept }: { concept: EventConcept }) => (
-    <div className="flex items-center gap-3 sm:gap-4 py-3.5 group">
-      {/* Gradient swatch */}
-      <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br ${concept.coverGradient} shrink-0 shadow-sm`} />
-
-      <div className="flex-1 min-w-0">
-        <p className="font-semibold text-sm text-stone-900">{concept.title}</p>
-        <p className="text-xs text-stone-400 italic line-clamp-1">{concept.tagline}</p>
-        <p className="text-xs text-stone-300 mt-0.5">{concept.estimatedBudget}</p>
-        {concept.clientComment && (
-          <p className="text-xs text-sky-600 mt-1 bg-sky-50 border border-sky-100 px-2 py-1 rounded-lg inline-block line-clamp-1">
-            "{concept.clientComment}"
-          </p>
-        )}
-      </div>
-
-      {/* Actions or status */}
-      <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-        {concept.status === 'pending' ? (
-          <>
-            <button
-              onClick={() => { setSelected({ concept, action: 'approve' }); setComment('') }}
-              className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-sage-100 hover:bg-sage-200 text-sage-600 flex items-center justify-center transition-all hover:scale-105 shadow-sm"
-              title="Approve"
-            >
-              <Check size={14} />
-            </button>
-            <button
-              onClick={() => { setSelected({ concept, action: 'revise' }); setComment(concept.clientComment) }}
-              className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-sky-100 hover:bg-sky-200 text-sky-600 flex items-center justify-center transition-all hover:scale-105 shadow-sm"
-              title="Request changes"
-            >
-              <MessageSquare size={13} />
-            </button>
-            <button
-              onClick={() => { setSelected({ concept, action: 'reject' }); setComment('') }}
-              className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-rose-100 hover:bg-rose-200 text-rose-500 flex items-center justify-center transition-all hover:scale-105 shadow-sm"
-              title="Decline"
-            >
-              <X size={14} />
-            </button>
-          </>
-        ) : (
-          <Badge variant={decisionStyle[concept.status]?.badge ?? 'default'} dot>
-            {concept.status}
-          </Badge>
-        )}
-      </div>
-    </div>
-  )
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 max-w-2xl mx-auto">
 
       {/* ── Header ── */}
       <div className="animate-fade-in">
@@ -102,69 +56,185 @@ export function ApprovalsPage() {
         </p>
       </div>
 
-      {/* ── Summary chips ── */}
-      <div className="flex gap-2 sm:gap-3 flex-wrap animate-fade-in delay-75">
-        <div className="flex items-center gap-1.5 bg-amber-50 ring-1 ring-amber-200 text-amber-700 text-xs font-semibold px-3 py-1.5 rounded-full">
-          <Clock size={12} />
-          {pending.length} pending
-        </div>
-        <div className="flex items-center gap-1.5 bg-sage-50 ring-1 ring-sage-200 text-sage-700 text-xs font-semibold px-3 py-1.5 rounded-full">
-          <Check size={12} />
-          {shared.filter(c => c.status === 'approved').length} approved
-        </div>
-        <div className="flex items-center gap-1.5 bg-rose-50 ring-1 ring-rose-200 text-rose-600 text-xs font-semibold px-3 py-1.5 rounded-full">
-          <X size={12} />
-          {shared.filter(c => c.status === 'rejected').length} declined
-        </div>
-      </div>
-
-      {/* ── Pending — warm amber tinted card ── */}
-      {pending.length > 0 && (
-        <section className="animate-fade-in delay-150">
-          <div className="rounded-2xl bg-gradient-to-br from-amber-50 to-brand-50 ring-1 ring-amber-200/60 overflow-hidden shadow-sm">
-            {/* Coloured header strip */}
-            <div className="px-5 py-3 bg-amber-400/10 border-b border-amber-200/40 flex items-center gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse-soft" />
-              <p className="text-xs font-bold text-amber-700 uppercase tracking-[0.12em]">
-                Awaiting Your Review
-              </p>
-              <span className="ml-auto text-xs font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">
-                {pending.length}
-              </span>
-            </div>
-            <div className="px-4 sm:px-5 divide-y divide-amber-100/60">
-              {pending.map(c => <ConceptRow key={c.id} concept={c} />)}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ── Past decisions — neutral card ── */}
-      {decided.length > 0 && (
-        <section className="animate-fade-in delay-225">
-          <div className="mb-3">
-            <p className="eyebrow text-stone-400">History</p>
-          </div>
-          <Card>
-            <div className="px-5 py-3 border-b border-stone-100 flex items-center gap-2">
-              <p className="text-xs font-bold text-stone-400 uppercase tracking-[0.12em]">Past Decisions</p>
-            </div>
-            <div className="px-4 sm:px-5 divide-y divide-stone-50">
-              {decided.map(c => <ConceptRow key={c.id} concept={c} />)}
-            </div>
-          </Card>
-        </section>
-      )}
-
       {/* ── Empty state ── */}
       {shared.length === 0 && (
-        <div className="rounded-2xl border-2 border-dashed border-stone-200 py-16 text-center animate-fade-in">
+        <div className="rounded-2xl border-2 border-dashed border-stone-200 py-20 text-center animate-fade-in">
           <Sparkles size={28} className="mx-auto text-stone-200 mb-3" />
           <p className="text-stone-400 font-medium text-sm">Nothing to review yet</p>
           <p className="text-stone-300 text-xs mt-1 max-w-xs mx-auto">
             Your planner will share concepts with you once they're ready.
           </p>
         </div>
+      )}
+
+      {/* ── Focused pending concept ── */}
+      {pending.length > 0 && current && (
+        <section className="animate-fade-in delay-75">
+          {/* Counter + navigation */}
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="text-xs font-bold text-amber-600 uppercase tracking-[0.12em]">
+                Awaiting your review
+              </p>
+              <p className="text-stone-400 text-xs mt-0.5">
+                Concept {safePendingIdx + 1} of {pending.length}
+              </p>
+            </div>
+            {pending.length > 1 && (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setPendingIdx(i => Math.max(0, i - 1))}
+                  disabled={safePendingIdx === 0}
+                  className="w-8 h-8 rounded-full border border-stone-200 flex items-center justify-center text-stone-400 hover:text-stone-700 hover:border-stone-300 disabled:opacity-30 transition-all"
+                >
+                  <ChevronLeft size={14} />
+                </button>
+                <button
+                  onClick={() => setPendingIdx(i => Math.min(pending.length - 1, i + 1))}
+                  disabled={safePendingIdx === pending.length - 1}
+                  className="w-8 h-8 rounded-full border border-stone-200 flex items-center justify-center text-stone-400 hover:text-stone-700 hover:border-stone-300 disabled:opacity-30 transition-all"
+                >
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Progress dots */}
+          {pending.length > 1 && (
+            <div className="flex gap-1.5 mb-4">
+              {pending.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setPendingIdx(i)}
+                  className={`h-1.5 rounded-full transition-all ${
+                    i === safePendingIdx ? 'bg-amber-400 w-6' : 'bg-stone-200 w-1.5 hover:bg-stone-300'
+                  }`}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Concept card */}
+          <div className="rounded-2xl overflow-hidden ring-1 ring-amber-200/60 shadow-sm bg-white">
+            {/* Full-width gradient hero */}
+            <div className={`h-32 sm:h-40 bg-gradient-to-br ${current.coverGradient} relative overflow-hidden`}>
+              <div className="absolute inset-0 bg-black/15" />
+              <div className="absolute -right-8 -top-8 w-40 h-40 bg-white/10 rounded-full" />
+              <div className="absolute -left-4 bottom-0 w-24 h-24 bg-white/8 rounded-full" />
+              <div className="absolute inset-0 flex flex-col justify-end p-5">
+                <p className="text-white font-bold text-xl drop-shadow-sm leading-tight">{current.title}</p>
+                <p className="text-white/75 text-sm mt-0.5 italic">{current.tagline}</p>
+              </div>
+              {/* Pending badge */}
+              <div className="absolute top-4 right-4">
+                <span className="text-[10px] font-bold bg-amber-400/90 text-amber-900 px-2.5 py-1 rounded-full">
+                  Pending
+                </span>
+              </div>
+            </div>
+
+            {/* Concept details */}
+            <div className="p-5 space-y-4">
+              {/* Mood + palette chips */}
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">Mood</p>
+                <p className="text-sm text-stone-700">{current.mood}</p>
+              </div>
+
+              {current.colorPalette.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">Colour palette</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {current.colorPalette.map(c => (
+                      <span key={c} className="text-xs px-2.5 py-1 rounded-full bg-stone-100 text-stone-600 font-medium">{c}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400 mb-2">Venue & Setting</p>
+                <p className="text-sm text-stone-600 leading-relaxed">{current.venueDescription}</p>
+              </div>
+
+              {/* Budget estimate */}
+              <div className="flex items-center justify-between pt-2 border-t border-stone-100">
+                <p className="text-xs text-stone-400">Estimated budget</p>
+                <p className="text-sm font-semibold text-stone-800">{current.estimatedBudget}</p>
+              </div>
+
+              {/* Previous comment if any */}
+              {current.clientComment && (
+                <div className="px-3 py-2.5 rounded-xl bg-sky-50 border border-sky-100">
+                  <p className="text-xs text-sky-700 italic">"{current.clientComment}"</p>
+                </div>
+              )}
+            </div>
+
+            {/* Action buttons */}
+            <div className="px-5 pb-5 grid grid-cols-3 gap-2">
+              <button
+                onClick={() => { setSelected({ concept: current, action: 'approve' }); setComment('') }}
+                className="flex flex-col items-center gap-1.5 py-3 rounded-2xl bg-sage-50 hover:bg-sage-100 text-sage-700 ring-1 ring-sage-200 transition-all hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <Check size={18} />
+                <span className="text-[11px] font-bold">Approve</span>
+              </button>
+              <button
+                onClick={() => { setSelected({ concept: current, action: 'revise' }); setComment(current.clientComment) }}
+                className="flex flex-col items-center gap-1.5 py-3 rounded-2xl bg-sky-50 hover:bg-sky-100 text-sky-700 ring-1 ring-sky-200 transition-all hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <MessageSquare size={18} />
+                <span className="text-[11px] font-bold">Request changes</span>
+              </button>
+              <button
+                onClick={() => { setSelected({ concept: current, action: 'reject' }); setComment('') }}
+                className="flex flex-col items-center gap-1.5 py-3 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-600 ring-1 ring-rose-200 transition-all hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <X size={18} />
+                <span className="text-[11px] font-bold">Decline</span>
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── All pending resolved ── */}
+      {pending.length === 0 && decided.length > 0 && (
+        <div className="rounded-2xl bg-gradient-to-br from-sage-50 to-stone-50 ring-1 ring-sage-200/60 p-6 text-center animate-fade-in">
+          <div className="w-12 h-12 rounded-full bg-sage-100 flex items-center justify-center mx-auto mb-3">
+            <Check size={22} className="text-sage-600" />
+          </div>
+          <p className="text-stone-800 font-semibold text-sm">You're all caught up!</p>
+          <p className="text-stone-400 text-xs mt-1">All concepts have been reviewed.</p>
+        </div>
+      )}
+
+      {/* ── Past decisions — compact history ── */}
+      {decided.length > 0 && (
+        <section className="animate-fade-in delay-150">
+          <div className="mb-3">
+            <p className="eyebrow text-stone-400">History</p>
+            <h2 className="font-display text-lg font-semibold text-stone-800">Past decisions</h2>
+          </div>
+          <div className="space-y-2">
+            {decided.map(c => (
+              <div key={c.id} className="flex items-center gap-3 p-3.5 rounded-2xl bg-white ring-1 ring-stone-100 shadow-sm">
+                <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${c.coverGradient} shrink-0 shadow-sm`} />
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm text-stone-800 truncate">{c.title}</p>
+                  {c.clientComment && (
+                    <p className="text-xs text-stone-400 italic truncate">"{c.clientComment}"</p>
+                  )}
+                </div>
+                <Badge dot variant={decisionBadge[c.status] ?? 'default'}>
+                  {c.status}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        </section>
       )}
 
       {/* ── Action modal ── */}

@@ -2,7 +2,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import {
   LayoutDashboard, CalendarDays, Users, Store, Wand2,
-  Eye, CheckSquare, TrendingUp, Sparkles, Settings, ChevronDown, X,
+  Eye, CheckSquare, TrendingUp, Sparkles, Settings, ChevronDown, X, LogOut,
 } from 'lucide-react'
 import { useStore } from '../../store'
 import { cn, formatDateShort, daysUntil, completionPercent } from '../../lib/utils'
@@ -30,7 +30,7 @@ const clientNav = [
 ]
 
 export function Sidebar({ onClose }: SidebarProps) {
-  const { role, events, activeEventId, setActiveEvent } = useStore()
+  const { role, events, activeEventId, setActiveEvent, logout, session } = useStore()
   const isPlanner = role === 'planner'
   const nav = isPlanner ? plannerNav : clientNav
   const navigate = useNavigate()
@@ -196,6 +196,27 @@ export function Sidebar({ onClose }: SidebarProps) {
           </NavLink>
         ))}
       </nav>
+
+      {/* ── Session footer ── */}
+      <div className={cn(
+        'relative px-3 py-2 border-t',
+        isPlanner ? 'border-white/[0.07]' : 'border-stone-100'
+      )}>
+        <button
+          onClick={() => { logout(); navigate('/welcome') }}
+          className={cn(
+            'w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-left transition-all text-xs font-medium',
+            isPlanner
+              ? 'text-white/30 hover:text-white/60 hover:bg-white/[0.05]'
+              : 'text-stone-400 hover:text-stone-600 hover:bg-stone-50'
+          )}
+        >
+          <LogOut size={13} className="shrink-0" />
+          <span className="flex-1 truncate">
+            {session?.displayName ? `Sign out (${session.displayName})` : 'Sign out'}
+          </span>
+        </button>
+      </div>
 
       {/* ── Client: event countdown widget ── */}
       {!isPlanner && events[0] && (() => {

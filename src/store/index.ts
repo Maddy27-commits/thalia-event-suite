@@ -4,6 +4,7 @@ import type {
   AppState, Event, Vendor, ConceptStatus, Role,
   PlannerProfile, ClientProfile, EventType,
   EventCeremony, EventSubCategory, SubCategoryTask, TaskMessage,
+  AuthSession, RegisteredPlanner,
 } from '../types'
 import { offsetDate } from '../lib/utils'
 
@@ -696,8 +697,10 @@ function mapTask(
 // ─── Store ─────────────────────────────────────────────────────────────────────
 export const useStore = create<AppState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       role: 'planner',
+      session: null,
+      registeredPlanners: [],
       activeEventId: 'e1',
       events: SAMPLE_EVENTS,
       vendors: SAMPLE_VENDORS,
@@ -707,6 +710,74 @@ export const useStore = create<AppState>()(
       clientProfile: DEFAULT_CLIENT_PROFILE,
 
       setRole: (role: Role) => set({ role }),
+
+      // ─── Auth ────────────────────────────────────────────────────────────
+      login: (session: AuthSession) => {
+        set({ session, role: session.role })
+        // Sync profile names when logging in
+        if (session.role === 'planner' && !session.isPlannerPreview) {
+          set((s) => ({
+            plannerProfile: {
+              ...s.plannerProfile,
+              name: session.displayName,
+              email: session.email,
+            },
+          }))
+        } else if (session.role === 'client') {
+          set((s) => ({
+            clientProfile: {
+              ...s.clientProfile,
+              name: session.displayName,
+              email: session.email,
+            },
+          }))
+        }
+      },
+
+      logout: () => {
+        set({ session: null, role: 'planner' })
+      },
+
+      registerPlanner: (data) => {
+        const existing = get().registeredPlanners.find(
+          (p) => p.email.toLowerCase() === data.email.toLowerCase()
+        )
+        if (existing) return 'email_taken'
+        const planner: RegisteredPlanner = { ...data, createdAt: new Date().toISOString() }
+        set((s) => ({ registeredPlanners: [...s.registeredPlanners, planner] }))
+        return 'ok'
+      },
+
+      enterPreviewMode: (eventId: string, clientName: string, clientEmail: string) => {
+        const current = get().session
+        if (!current || current.role !== 'planner') return
+        set({
+          role: 'client',
+          session: {
+            ...current,
+            isPlannerPreview: true,
+            previewEventId: eventId,
+          },
+          clientProfile: { name: clientName, email: clientEmail, whatsappNumber: '' },
+        })
+      },
+
+      exitPreviewMode: () => {
+        const current = get().session
+        if (!current?.isPlannerPreview) return
+        set({
+          role: 'planner',
+          session: {
+            ...current,
+            role: 'planner',
+            isPlannerPreview: false,
+            previewEventId: undefined,
+            clientEventId: undefined,
+          },
+          clientProfile: { name: '', email: '', whatsappNumber: '' },
+        })
+      },
+
       setApiKey: (apiKey: string) => set({ apiKey }),
       setPlannerProfile: (updates) =>
         set((s) => ({ plannerProfile: { ...s.plannerProfile, ...updates } })),
@@ -957,8 +1028,8 @@ export const useStore = create<AppState>()(
         })),
     }),
     {
-      name: 'thalia-storage-v5',
-      version: 5,
+      name: 'thalia-storage-v6',
+      version: 6,
       onRehydrateStorage: () => (state) => {
         // Backfill new task-level fields (currentPhase, messages, options)
         // for users upgrading from older schema versions.
@@ -971,6 +1042,9 @@ export const useStore = create<AppState>()(
         activeEventId: state.activeEventId,
         plannerProfile: state.plannerProfile,
         clientProfile: state.clientProfile,
+        session: state.session,
+        registeredPlanners: state.registeredPlanners,
+        role: state.role,
       }),
     }
   )

@@ -1,6 +1,28 @@
 // ─── Roles ───────────────────────────────────────────────────────────────────
 export type Role = 'planner' | 'client'
 
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+export interface AuthSession {
+  role: Role
+  displayName: string
+  email: string
+  /** For clients: the event ID they are locked to */
+  clientEventId?: string
+  /** Planner previewing the client portal for a specific event */
+  isPlannerPreview: boolean
+  /** ID of the event being previewed (planner preview mode) */
+  previewEventId?: string
+}
+
+export interface RegisteredPlanner {
+  name: string
+  businessName: string
+  email: string
+  /** Plain text for demo purposes */
+  password: string
+  createdAt: string
+}
+
 // ─── Vendor ──────────────────────────────────────────────────────────────────
 export type VendorCategory =
   | 'venue'
@@ -257,6 +279,8 @@ export interface ClientProfile {
 // ─── App State ────────────────────────────────────────────────────────────────
 export interface AppState {
   role: Role
+  session: AuthSession | null
+  registeredPlanners: RegisteredPlanner[]
   activeEventId: string | null
   events: Event[]
   vendors: Vendor[]
@@ -267,6 +291,13 @@ export interface AppState {
 
   // Role
   setRole: (role: Role) => void
+
+  // Auth
+  login: (session: AuthSession) => void
+  logout: () => void
+  registerPlanner: (data: Omit<RegisteredPlanner, 'createdAt'>) => 'ok' | 'email_taken'
+  enterPreviewMode: (eventId: string, clientName: string, clientEmail: string) => void
+  exitPreviewMode: () => void
 
   // API Key
   setApiKey: (key: string) => void

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { CalendarDays, Store, Wand2, TrendingUp, CheckCircle2, AlertCircle, Bell, ArrowRight } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../../store'
+import { usePlannerEvents } from '../../hooks/usePlannerEvents'
 import { Card, CardBody } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
@@ -37,7 +38,8 @@ const eventTypeBand: Record<string, string> = {
 }
 
 export function PlannerDashboard() {
-  const { events, vendors, setActiveEvent, plannerProfile } = useStore()
+  const { vendors, setActiveEvent, plannerProfile } = useStore()
+  const events = usePlannerEvents()
   const navigate = useNavigate()
   const [reminderEvent, setReminderEvent] = useState<Event | null>(null)
   const greeting  = timeGreeting()

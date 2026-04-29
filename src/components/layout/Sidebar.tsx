@@ -5,6 +5,8 @@ import {
   Eye, CheckSquare, TrendingUp, Sparkles, Settings, ChevronDown, X, LogOut,
 } from 'lucide-react'
 import { useStore } from '../../store'
+import { usePlannerEvents } from '../../hooks/usePlannerEvents'
+import { useClientEvent } from '../../hooks/useClientEvent'
 import { cn, formatDateShort, daysUntil, completionPercent } from '../../lib/utils'
 import { ThaliaBloomMark } from '../ui/ThaliaLogo'
 
@@ -30,12 +32,14 @@ const clientNav = [
 ]
 
 export function Sidebar({ onClose }: SidebarProps) {
-  const { role, events, activeEventId, setActiveEvent, logout, session } = useStore()
+  const { role, activeEventId, setActiveEvent, logout, session } = useStore()
+  const plannerEvents = usePlannerEvents()
+  const { event: clientEvent } = useClientEvent()
   const isPlanner = role === 'planner'
   const nav = isPlanner ? plannerNav : clientNav
   const navigate = useNavigate()
   const [showAllEvents, setShowAllEvents] = useState(false)
-  const visibleEvents = showAllEvents ? events : events.slice(0, 4)
+  const visibleEvents = showAllEvents ? plannerEvents : plannerEvents.slice(0, 4)
 
   return (
     <aside className={cn(
@@ -102,7 +106,7 @@ export function Sidebar({ onClose }: SidebarProps) {
       </div>
 
       {/* ── Event switcher (planner only) ── */}
-      {isPlanner && events.length > 0 && (
+      {isPlanner && plannerEvents.length > 0 && (
         <div className="relative px-3 py-3 border-b border-white/[0.07]">
           <p className="text-[10px] font-bold text-brand-400/60 uppercase tracking-widest px-2 mb-2">
             Events
@@ -130,13 +134,13 @@ export function Sidebar({ onClose }: SidebarProps) {
               )
             })}
 
-            {events.length > 4 && (
+            {plannerEvents.length > 4 && (
               <button
                 onClick={() => setShowAllEvents(v => !v)}
                 className="w-full flex items-center justify-center gap-1 px-2.5 py-1.5 mt-1 rounded-xl text-[10px] text-brand-400/60 hover:text-brand-300 hover:bg-white/[0.04] font-bold uppercase tracking-widest transition-all"
               >
                 <ChevronDown size={10} className={cn('transition-transform', showAllEvents && 'rotate-180')} />
-                {showAllEvents ? 'Show less' : `+${events.length - 4} more`}
+                {showAllEvents ? 'Show less' : `+${plannerEvents.length - 4} more`}
               </button>
             )}
           </div>
@@ -219,8 +223,8 @@ export function Sidebar({ onClose }: SidebarProps) {
       </div>
 
       {/* ── Client: event countdown widget ── */}
-      {!isPlanner && events[0] && (() => {
-        const ev   = events[0]
+      {!isPlanner && clientEvent && (() => {
+        const ev   = clientEvent
         const days = daysUntil(ev.date)
         const pct  = completionPercent(ev.milestones)
         return (

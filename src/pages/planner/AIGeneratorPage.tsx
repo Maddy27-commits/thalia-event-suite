@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Wand2, Sparkles, ChevronDown, ChevronUp } from 'lucide-react'
 import { useStore } from '../../store'
+import { usePlannerEvents } from '../../hooks/usePlannerEvents'
 import { Button } from '../../components/ui/Button'
 import { Input, Textarea, Select } from '../../components/ui/Input'
 import { TagInput } from '../../components/ui/TagInput'
@@ -236,7 +237,8 @@ function ConceptBoard({ concept, index, onShare }: { concept: EventConcept; inde
 
 // ─── Page ──────────────────────────────────────────────────────────────────────
 export function AIGeneratorPage() {
-  const { events, activeEventId, addConcept, setIsGenerating, isGenerating, shareConceptWithClient } = useStore()
+  const { activeEventId, addConcept, setIsGenerating, isGenerating, shareConceptWithClient } = useStore()
+  const events = usePlannerEvents()
   const activeEvent = events.find(e => e.id === activeEventId)
 
   const [form, setForm] = useState<ConceptGeneratorInput>({

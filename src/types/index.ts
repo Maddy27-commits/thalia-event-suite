@@ -103,6 +103,8 @@ export interface Event {
   concepts: EventConcept[]
   createdAt: string
   updatedAt: string
+  /** Email of the planner who owns this event — used to scope data per planner account. */
+  plannerEmail?: string
 }
 
 // ─── Hierarchical checklist (3 levels) ───────────────────────────────────────

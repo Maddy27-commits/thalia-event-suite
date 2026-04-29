@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Heart, Utensils, Music, Palette, ThumbsDown, StickyNote, ChevronDown, ChevronUp } from 'lucide-react'
 import { useStore } from '../../store'
+import { usePlannerEvents } from '../../hooks/usePlannerEvents'
 import { Card, CardBody, CardHeader } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { Textarea } from '../../components/ui/Input'
@@ -37,7 +38,8 @@ function ToggleChipGroup({
 }
 
 export function ClientsPage() {
-  const { events, activeEventId, updateEvent } = useStore()
+  const { activeEventId, updateEvent } = useStore()
+  const events = usePlannerEvents()
   const [expandedId, setExpandedId] = useState<string | null>(activeEventId)
 
   const handlePrefChange = (eventId: string, key: keyof ClientPreferences, value: string | string[]) => {

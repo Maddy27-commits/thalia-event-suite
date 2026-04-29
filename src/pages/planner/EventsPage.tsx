@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useStore, getDefaultCeremonies, offsetFor } from '../../store'
+import { usePlannerEvents } from '../../hooks/usePlannerEvents'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
@@ -1389,7 +1390,7 @@ function CreateEventWizard({ open, onClose }: { open: boolean; onClose: () => vo
 
 // ─── Page ──────────────────────────────────────────────────────────────────────
 export function EventsPage() {
-  const { events } = useStore()
+  const events = usePlannerEvents()
   const [createOpen, setCreateOpen] = useState(false)
 
   return (

@@ -606,6 +606,7 @@ const SAMPLE_EVENTS: Event[] = [
     ],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    plannerEmail: 'demo@thalia.app',
   },
   {
     id: 'e2',
@@ -641,6 +642,7 @@ const SAMPLE_EVENTS: Event[] = [
     concepts: [],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    plannerEmail: 'demo@thalia.app',
   },
 ]
 
@@ -786,7 +788,11 @@ export const useStore = create<AppState>()(
       setActiveEvent: (id) => set({ activeEventId: id }),
       setIsGenerating: (v) => set({ isGenerating: v }),
 
-      addEvent: (event) => set((s) => ({ events: [...s.events, event] })),
+      addEvent: (event) => {
+        // Stamp the current planner's email so events are scoped per account
+        const plannerEmail = get().session?.email ?? ''
+        set((s) => ({ events: [...s.events, { ...event, plannerEmail }] }))
+      },
       updateEvent: (id, updates) =>
         set((s) => ({
           events: s.events.map((e) =>

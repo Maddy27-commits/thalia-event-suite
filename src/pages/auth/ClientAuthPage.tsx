@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Sparkles, Mail } from 'lucide-react'
+import { ArrowLeft, Mail } from 'lucide-react'
 import { useStore } from '../../store'
 import { ThaliaBloomMark } from '../../components/ui/ThaliaLogo'
 
@@ -52,7 +52,7 @@ export function ClientAuthPage() {
 
         {/* Back */}
         <button
-          onClick={() => navigate('/')}
+          onClick={() => navigate('/welcome')}
           className="flex items-center gap-1.5 text-stone-400 hover:text-stone-600 text-sm mb-8 transition-colors"
         >
           <ArrowLeft size={14} />
@@ -71,14 +71,9 @@ export function ClientAuthPage() {
         </div>
 
         {/* Header */}
-        <div className="flex items-center gap-2 mb-2">
-          <div className="w-8 h-8 rounded-xl bg-sage-100 ring-1 ring-sage-200/60 flex items-center justify-center">
-            <Sparkles size={15} className="text-sage-600" />
-          </div>
-          <h1 className="text-stone-900 font-bold text-xl tracking-tight">Client Portal</h1>
-        </div>
+        <h1 className="text-stone-900 font-bold text-2xl tracking-tight mb-2">Sign in</h1>
         <p className="text-stone-400 text-sm mb-8 leading-relaxed">
-          Enter the email address your planner used when setting up your event.
+          Enter the email address your planner registered you with to access your event.
         </p>
 
         {/* Email input */}
@@ -111,7 +106,7 @@ export function ClientAuthPage() {
           disabled={loading}
           className="w-full py-3.5 rounded-2xl bg-sage-500 hover:bg-sage-600 disabled:opacity-60 text-white font-semibold text-sm transition-all shadow-sm"
         >
-          {loading ? 'Checking…' : 'Access my event'}
+          {loading ? 'Signing in…' : 'Sign in'}
         </button>
 
         {/* Demo hint */}

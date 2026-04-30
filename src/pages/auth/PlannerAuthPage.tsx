@@ -10,8 +10,8 @@ export function PlannerAuthPage() {
   const navigate = useNavigate()
   const { registeredPlanners, login, registerPlanner } = useStore()
 
-  // Default to sign-in if accounts exist, otherwise create account
-  const [tab, setTab]           = useState<Tab>(registeredPlanners.length > 0 ? 'signin' : 'signup')
+  // Always open on sign-in — users with no account can switch to Create account
+  const [tab, setTab]           = useState<Tab>('signin')
   const [name, setName]         = useState('')
   const [business, setBusiness] = useState('')
   const [email, setEmail]       = useState('')
@@ -93,7 +93,7 @@ export function PlannerAuthPage() {
             className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${
               tab === 'signin'
                 ? 'bg-brand-500 text-white shadow-sm'
-                : 'text-stone-400 hover:text-stone-200'
+                : 'text-stone-300 hover:text-white'
             }`}
           >
             Sign in
@@ -103,7 +103,7 @@ export function PlannerAuthPage() {
             className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${
               tab === 'signup'
                 ? 'bg-brand-500 text-white shadow-sm'
-                : 'text-stone-400 hover:text-stone-200'
+                : 'text-stone-300 hover:text-white'
             }`}
           >
             Create account

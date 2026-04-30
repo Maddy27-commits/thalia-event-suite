@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
   User, MessageCircle, Mail, Palette,
-  Check, Save, Phone, AtSign, Info, ExternalLink, Zap,
+  Check, Save, Phone, AtSign, Info,
 } from 'lucide-react'
 import { useStore } from '../../store'
 import { Card, CardBody } from '../../components/ui/Card'
@@ -41,51 +41,6 @@ function SectionLabel({ icon: Icon, label, accent }: { icon: React.ElementType; 
   )
 }
 
-// ─── EmailJS Setup Steps ───────────────────────────────────────────────────────
-function EmailJSSetupGuide() {
-  const [open, setOpen] = useState(false)
-  return (
-    <div className="rounded-xl border border-dashed border-stone-200 overflow-hidden">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-stone-50 transition-colors"
-      >
-        <div className="w-6 h-6 rounded-md bg-[#EA4335] flex items-center justify-center shrink-0">
-          <Zap size={12} className="text-white" />
-        </div>
-        <span className="text-sm font-semibold text-stone-700 flex-1">How to set up direct email sending</span>
-        <span className="text-xs text-stone-400">{open ? 'Hide' : 'Show steps'}</span>
-      </button>
-      {open && (
-        <div className="px-4 pb-4 space-y-3 border-t border-stone-100 pt-3">
-          <p className="text-xs text-stone-500">EmailJS lets you send emails directly from the browser — free up to 200/month. Takes ~5 minutes to set up.</p>
-          {[
-            { n: '1', text: 'Go to emailjs.com and create a free account.' },
-            { n: '2', text: 'Click "Add New Service" → choose Gmail → connect your Google account. Copy your Service ID.' },
-            { n: '3', text: 'Go to "Email Templates" → Create Template. Use these exact variables in the body:' },
-            { n: '4', text: 'In the template "To Email" field enter: {{to_email}}. Set Subject to: {{subject}}. Set body content to: {{message}}. Save and copy the Template ID.' },
-            { n: '5', text: 'Go to Account → "General" tab → copy your Public Key.' },
-            { n: '6', text: 'Paste all three IDs below and hit Save. That\'s it — emails fire directly from Thalia.' },
-          ].map((step) => (
-            <div key={step.n} className="flex gap-3">
-              <span className="w-5 h-5 rounded-full bg-stone-100 text-stone-500 text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">{step.n}</span>
-              <p className="text-xs text-stone-600 leading-relaxed">{step.text}</p>
-            </div>
-          ))}
-          <a
-            href="https://www.emailjs.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-600 hover:text-brand-700 mt-1"
-          >
-            Open EmailJS <ExternalLink size={11} />
-          </a>
-        </div>
-      )}
-    </div>
-  )
-}
-
 // ─── Planner Settings ──────────────────────────────────────────────────────────
 function PlannerSettings() {
   const { plannerProfile, setPlannerProfile } = useStore()
@@ -101,7 +56,6 @@ function PlannerSettings() {
   }
 
   const initial = form.name?.trim() ? form.name.charAt(0).toUpperCase() : 'P'
-  const emailjsConnected = !!(form.emailjsServiceId?.trim() && form.emailjsTemplateId?.trim() && form.emailjsPublicKey?.trim())
 
   return (
     <div className="space-y-6">
@@ -117,12 +71,6 @@ function PlannerSettings() {
               {form.title || 'Event Planner'}{form.businessName ? ` · ${form.businessName}` : ''}
             </p>
           </div>
-          {emailjsConnected && (
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 bg-emerald-50 ring-1 ring-emerald-200 px-3 py-1.5 rounded-full">
-              <Check size={11} />
-              Email connected
-            </div>
-          )}
         </CardBody>
       </Card>
 
@@ -172,31 +120,20 @@ function PlannerSettings() {
         </CardBody>
       </Card>
 
-      {/* Direct Email via EmailJS */}
+      {/* Email — auto-managed */}
       <Card>
-        <CardBody className="py-5 space-y-4">
-          <div className="flex items-center justify-between mb-4">
-            <SectionLabel icon={Mail} label="Email — Direct Send" />
-            {emailjsConnected
-              ? <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 ring-1 ring-emerald-200 px-2.5 py-1 rounded-full -mt-4 flex items-center gap-1"><Check size={10} />Connected</span>
-              : <span className="text-xs font-semibold text-amber-600 bg-amber-50 ring-1 ring-amber-200 px-2.5 py-1 rounded-full -mt-4">Not configured</span>
-            }
+        <CardBody className="py-4 px-5">
+          <div className="flex items-start gap-3">
+            <div className="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center shrink-0 mt-0.5">
+              <Mail size={14} className="text-emerald-600" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-stone-700 mb-0.5">Email delivery</p>
+              <p className="text-xs text-stone-400 leading-relaxed">
+                Reminder and concept emails are sent automatically via Thalia's delivery service. No setup required on your end.
+              </p>
+            </div>
           </div>
-
-          <EmailJSSetupGuide />
-
-          <div className="space-y-3 pt-1">
-            <Input label="EmailJS Service ID" placeholder="service_xxxxxxx"
-              value={form.emailjsServiceId} onChange={(e) => set('emailjsServiceId', e.target.value)} />
-            <Input label="EmailJS Template ID" placeholder="template_xxxxxxx"
-              value={form.emailjsTemplateId} onChange={(e) => set('emailjsTemplateId', e.target.value)} />
-            <Input label="EmailJS Public Key" placeholder="xxxxxxxxxxxxxxxxxxxx"
-              value={form.emailjsPublicKey} onChange={(e) => set('emailjsPublicKey', e.target.value)} />
-          </div>
-
-          <p className="text-xs text-stone-400">
-            Once connected, reminder emails send with one click directly from Thalia — no Gmail tab needed.
-          </p>
         </CardBody>
       </Card>
 
@@ -334,7 +271,7 @@ export function SettingsPage() {
           </h1>
           <p className="text-stone-500 mt-1 text-sm">
             {isPlanner
-              ? 'Manage your profile, connect email for direct sending, and configure notifications.'
+              ? 'Manage your profile, WhatsApp contact, and notification preferences.'
               : 'Update your contact details so your planner can reach you.'}
           </p>
         </div>

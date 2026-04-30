@@ -6,7 +6,7 @@ import {
   ArrowRight, ArrowLeft, Heart, Building2, Cake, GraduationCap,
   PartyPopper, Briefcase, Trophy, MicVocal, MessageSquare, Eye,
 } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useStore, getDefaultCeremonies, offsetFor } from '../../store'
 import { usePlannerEvents } from '../../hooks/usePlannerEvents'
 import { Badge } from '../../components/ui/Badge'
@@ -1181,6 +1181,12 @@ function CreateEventWizard({ open, onClose }: { open: boolean; onClose: () => vo
               <Input label="Theme" value={form.theme} onChange={e => setF('theme', e.target.value)} placeholder="Romantic Garden Luxe" />
               <Input label="Client Name" value={form.clientName} onChange={e => setF('clientName', e.target.value)} placeholder="e.g. Aisha Patel" />
               <Input label="Client Email" type="email" value={form.clientEmail} onChange={e => setF('clientEmail', e.target.value)} placeholder="client@example.com" />
+              <div className="col-span-2 flex items-start gap-2 bg-sky-50 ring-1 ring-sky-200/50 rounded-xl px-3.5 py-2.5 -mt-1">
+                <span className="text-sky-500 text-[10px] shrink-0 mt-0.5">🔑</span>
+                <p className="text-[11px] text-sky-700 leading-relaxed">
+                  Your client uses this email address to sign in to their event portal. Double-check it's correct.
+                </p>
+              </div>
               <Input label="Client WhatsApp" value={form.clientPhone} onChange={e => setF('clientPhone', e.target.value)} placeholder="+1 415 555 0101" className="col-span-2" />
               <Input label="Venue" value={form.venue} onChange={e => setF('venue', e.target.value)} placeholder="The Rosewood Estate" className="col-span-2" />
               <Input label="Location / City" value={form.location} onChange={e => setF('location', e.target.value)} placeholder="Napa Valley, CA" />
@@ -1392,6 +1398,14 @@ function CreateEventWizard({ open, onClose }: { open: boolean; onClose: () => vo
 export function EventsPage() {
   const events = usePlannerEvents()
   const [createOpen, setCreateOpen] = useState(false)
+  const location = useLocation()
+  useEffect(() => {
+    if ((location.state as { openCreate?: boolean } | null)?.openCreate) {
+      setCreateOpen(true)
+      // Clear state so navigating back doesn't reopen
+      window.history.replaceState({}, '')
+    }
+  }, [location.state])
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-5 animate-fade-in">

@@ -2,8 +2,6 @@ import { useState } from 'react'
 import { Wand2, Sparkles, ChevronDown, ChevronUp } from 'lucide-react'
 import { useStore } from '../../store'
 import { usePlannerEvents } from '../../hooks/usePlannerEvents'
-import { Button } from '../../components/ui/Button'
-import { Input, Textarea, Select } from '../../components/ui/Input'
 import { TagInput } from '../../components/ui/TagInput'
 import { generateEventConcepts } from '../../lib/claude'
 import { getImageForDecorItem } from '../../lib/images'
@@ -295,115 +293,179 @@ export function AIGeneratorPage() {
   return (
     <div className="flex flex-col md:flex-row h-full overflow-hidden">
 
-      {/* ── Left: input panel (scrollable) ── */}
-      <div className="md:w-80 shrink-0 border-b md:border-b-0 md:border-r border-stone-100 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-5 max-h-[45vh] md:max-h-none">
+      {/* ── Left: input panel ── */}
+      <div className="md:w-80 shrink-0 border-b md:border-b-0 md:border-r border-white/[0.06] bg-stone-950 flex flex-col max-h-[45vh] md:max-h-none">
 
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-plum-500 to-plum-700 flex items-center justify-center shadow-plum-sm">
-            <Wand2 size={15} className="text-white" />
-          </div>
-          <div>
-            <p className="font-bold text-stone-900 text-sm">AI Generator</p>
-            <p className="text-[11px] text-stone-400">3 bespoke concepts</p>
+        {/* Header */}
+        <div className="shrink-0 px-5 py-4 border-b border-white/[0.06]">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-plum-500 via-brand-600 to-brand-400 flex items-center justify-center shadow-lg shadow-brand-900/40">
+              <Wand2 size={16} className="text-white" />
+            </div>
+            <div>
+              <p className="font-bold text-white text-sm tracking-tight">AI Studio</p>
+              <p className="text-[11px] text-stone-500">3 bespoke concepts per run</p>
+            </div>
           </div>
         </div>
 
-        {/* Event details */}
-        <section className="space-y-3">
-          <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Event</p>
-          <Select
-            label="Attach to Event"
-            value={targetEventId}
-            onChange={e => setTargetEventId(e.target.value)}
-            options={[{ value: '', label: 'Select…' }, ...events.map(e => ({ value: e.id, label: e.name }))]}
-          />
-          <Select
-            label="Type"
-            value={form.eventType}
-            onChange={e => setForm(f => ({ ...f, eventType: e.target.value as EventType }))}
-            options={EVENT_TYPES}
-          />
-          <Input
-            label="Theme / Direction"
-            placeholder="e.g. Romantic Garden, Futuristic Luxe"
-            value={form.theme}
-            onChange={e => setForm(f => ({ ...f, theme: e.target.value }))}
-          />
-          <Input
-            label="Location"
-            placeholder="e.g. Tuscany, Italy"
-            value={form.location}
-            onChange={e => setForm(f => ({ ...f, location: e.target.value }))}
-          />
-          <div className="grid grid-cols-2 gap-2">
-            <Input
-              label="Budget ($)"
-              type="number"
-              value={String(form.budget)}
-              onChange={e => setForm(f => ({ ...f, budget: parseInt(e.target.value) || 0 }))}
-            />
-            <Input
-              label="Guests"
-              type="number"
-              value={String(form.guestCount)}
-              onChange={e => setForm(f => ({ ...f, guestCount: parseInt(e.target.value) || 0 }))}
-            />
-          </div>
-        </section>
+        {/* Scrollable body */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-6">
 
-        {/* Vibe */}
-        <section className="space-y-3">
-          <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Vibe</p>
-          <div className="flex flex-wrap gap-1.5">
-            {STYLE_OPTIONS.map(s => (
-              <button
-                key={s}
-                onClick={() => toggleStyle(s)}
-                className={`text-xs px-2.5 py-1 rounded-full border font-medium capitalize transition-all ${
-                  form.style.includes(s)
-                    ? 'bg-brand-600 text-white border-brand-600'
-                    : 'border-stone-200 text-stone-500 hover:border-brand-300 hover:text-brand-600'
-                }`}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-          <TagInput
-            label="Colour Palette"
-            value={form.colorPreferences}
-            onChange={v => setForm(f => ({ ...f, colorPreferences: v }))}
-            placeholder="blush, gold, sage, ivory…"
-          />
-          <TagInput
-            label="Dietary"
-            value={form.dietary}
-            onChange={v => setForm(f => ({ ...f, dietary: v }))}
-            placeholder="vegetarian, nut-free…"
-          />
-          <Textarea
-            label="Notes"
-            rows={3}
-            placeholder="Loves candlelight, hates neon, wants pampas grass…"
-            value={form.additionalNotes}
-            onChange={e => setForm(f => ({ ...f, additionalNotes: e.target.value }))}
-          />
-        </section>
+          {/* Event section */}
+          <section>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-stone-500 mb-3">Event</p>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-stone-400 mb-1.5">Attach to Event</label>
+                <div className="relative">
+                  <select
+                    value={targetEventId}
+                    onChange={e => setTargetEventId(e.target.value)}
+                    className="w-full appearance-none bg-white/[0.07] ring-1 ring-white/[0.08] rounded-xl px-3.5 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 transition-all"
+                  >
+                    <option value="">Select…</option>
+                    {events.map(e => (
+                      <option key={e.id} value={e.id}>{e.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
 
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 text-xs px-3 py-2.5 rounded-xl">
-            {error}
-          </div>
-        )}
+              <div>
+                <label className="block text-xs font-medium text-stone-400 mb-1.5">Type</label>
+                <div className="relative">
+                  <select
+                    value={form.eventType}
+                    onChange={e => setForm(f => ({ ...f, eventType: e.target.value as EventType }))}
+                    className="w-full appearance-none bg-white/[0.07] ring-1 ring-white/[0.08] rounded-xl px-3.5 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 transition-all"
+                  >
+                    {EVENT_TYPES.map(t => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
 
-        <Button
-          className="w-full bg-gradient-to-r from-plum-600 to-plum-500 hover:from-plum-700 hover:to-plum-600 shadow-plum-sm hover:shadow-plum-md text-white border-0"
-          loading={isGenerating}
-          icon={<Sparkles size={15} />}
-          onClick={handleGenerate}
-        >
-          {isGenerating ? 'Generating…' : 'Generate 3 Concepts'}
-        </Button>
+              <div>
+                <label className="block text-xs font-medium text-stone-400 mb-1.5">Theme / Direction</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Romantic Garden, Futuristic Luxe"
+                  value={form.theme}
+                  onChange={e => setForm(f => ({ ...f, theme: e.target.value }))}
+                  className="w-full bg-white/[0.07] ring-1 ring-white/[0.08] rounded-xl px-3.5 py-2.5 text-white text-sm placeholder:text-stone-600 focus:outline-none focus:ring-2 focus:ring-brand-400/30 transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-stone-400 mb-1.5">Location</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Tuscany, Italy"
+                  value={form.location}
+                  onChange={e => setForm(f => ({ ...f, location: e.target.value }))}
+                  className="w-full bg-white/[0.07] ring-1 ring-white/[0.08] rounded-xl px-3.5 py-2.5 text-white text-sm placeholder:text-stone-600 focus:outline-none focus:ring-2 focus:ring-brand-400/30 transition-all"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-medium text-stone-400 mb-1.5">Budget ($)</label>
+                  <input
+                    type="number"
+                    value={String(form.budget)}
+                    onChange={e => setForm(f => ({ ...f, budget: parseInt(e.target.value) || 0 }))}
+                    className="w-full bg-white/[0.07] ring-1 ring-white/[0.08] rounded-xl px-3.5 py-2.5 text-white text-sm placeholder:text-stone-600 focus:outline-none focus:ring-2 focus:ring-brand-400/30 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-stone-400 mb-1.5">Guests</label>
+                  <input
+                    type="number"
+                    value={String(form.guestCount)}
+                    onChange={e => setForm(f => ({ ...f, guestCount: parseInt(e.target.value) || 0 }))}
+                    className="w-full bg-white/[0.07] ring-1 ring-white/[0.08] rounded-xl px-3.5 py-2.5 text-white text-sm placeholder:text-stone-600 focus:outline-none focus:ring-2 focus:ring-brand-400/30 transition-all"
+                  />
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Vibe & Palette section */}
+          <section>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-stone-500 mb-3">Vibe &amp; Palette</p>
+            <div className="space-y-4">
+              {/* Style chips */}
+              <div className="flex flex-wrap gap-1.5">
+                {STYLE_OPTIONS.map(s => (
+                  <button
+                    key={s}
+                    onClick={() => toggleStyle(s)}
+                    className={`text-xs px-3 py-1.5 rounded-full ring-1 font-medium capitalize transition-all ${
+                      form.style.includes(s)
+                        ? 'bg-brand-500 ring-brand-500 text-white'
+                        : 'bg-white/[0.06] ring-white/[0.08] text-stone-400 hover:text-white hover:ring-white/20'
+                    }`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+
+              {/* Color palette */}
+              <div className="bg-white/[0.04] ring-1 ring-white/[0.07] rounded-xl p-3">
+                <p className="text-xs font-medium text-stone-400 mb-1.5">Colour Palette</p>
+                <TagInput
+                  value={form.colorPreferences}
+                  onChange={v => setForm(f => ({ ...f, colorPreferences: v }))}
+                  placeholder="blush, gold, sage, ivory…"
+                />
+              </div>
+
+              {/* Dietary */}
+              <div className="bg-white/[0.04] ring-1 ring-white/[0.07] rounded-xl p-3">
+                <p className="text-xs font-medium text-stone-400 mb-1.5">Dietary</p>
+                <TagInput
+                  value={form.dietary}
+                  onChange={v => setForm(f => ({ ...f, dietary: v }))}
+                  placeholder="vegetarian, nut-free…"
+                />
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-xs font-medium text-stone-400 mb-1.5">Notes</label>
+                <textarea
+                  rows={3}
+                  placeholder="Loves candlelight, hates neon, wants pampas grass…"
+                  value={form.additionalNotes}
+                  onChange={e => setForm(f => ({ ...f, additionalNotes: e.target.value }))}
+                  className="w-full bg-white/[0.07] ring-1 ring-white/[0.08] rounded-xl px-3.5 py-2.5 text-white text-sm placeholder:text-stone-600 focus:outline-none focus:ring-2 focus:ring-brand-400/30 transition-all resize-none"
+                />
+              </div>
+            </div>
+          </section>
+
+          {/* Error */}
+          {error && (
+            <div className="bg-rose-950/50 ring-1 ring-rose-500/30 text-rose-300 text-xs px-4 py-3 rounded-xl">
+              {error}
+            </div>
+          )}
+        </div>
+
+        {/* Generate button — pinned at bottom */}
+        <div className="shrink-0 p-5 border-t border-white/[0.06]">
+          <button
+            onClick={handleGenerate}
+            disabled={isGenerating}
+            className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-plum-600 via-brand-600 to-brand-500 hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-brand-900/30"
+          >
+            <Sparkles size={15} />
+            {isGenerating ? 'Generating…' : 'Generate 3 Concepts'}
+          </button>
+        </div>
       </div>
 
       {/* ── Right: mood board output (scrollable) ── */}

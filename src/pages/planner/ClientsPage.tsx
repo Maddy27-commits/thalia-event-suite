@@ -59,134 +59,146 @@ export function ClientsPage() {
         </p>
       </div>
 
-      <div className="space-y-4">
-        {events.map((event) => {
-          const isOpen = expandedId === event.id
-          const prefs = event.preferences
-          const filledCount = [prefs.style, prefs.colorPalette, prefs.dietary, prefs.musicGenre]
-            .filter((arr) => arr.length > 0).length + (prefs.notes ? 1 : 0)
+      {events.length === 0 ? (
+        <div className="rounded-2xl border-2 border-dashed border-stone-200 py-20 text-center">
+          <div className="w-14 h-14 rounded-2xl bg-stone-50 ring-1 ring-stone-100 flex items-center justify-center mx-auto mb-4">
+            <Heart size={24} className="text-stone-200" />
+          </div>
+          <p className="text-stone-600 font-semibold text-sm mb-1">No events yet</p>
+          <p className="text-stone-400 text-xs max-w-xs mx-auto leading-relaxed">
+            Add an event to view and manage client preferences here. Once created, a preferences template will appear for each event.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {events.map((event) => {
+            const isOpen = expandedId === event.id
+            const prefs = event.preferences
+            const filledCount = [prefs.style, prefs.colorPalette, prefs.dietary, prefs.musicGenre]
+              .filter((arr) => arr.length > 0).length + (prefs.notes ? 1 : 0)
 
-          return (
-            <Card key={event.id}>
-              <CardHeader>
-                <button
-                  className="flex items-center justify-between w-full"
-                  onClick={() => setExpandedId(isOpen ? null : event.id)}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-brand-50 flex items-center justify-center text-brand-600 font-bold text-sm">
-                      {event.clientName[0]}
+            return (
+              <Card key={event.id}>
+                <CardHeader>
+                  <button
+                    className="flex items-center justify-between w-full"
+                    onClick={() => setExpandedId(isOpen ? null : event.id)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-brand-50 flex items-center justify-center text-brand-600 font-bold text-sm">
+                        {event.clientName[0]}
+                      </div>
+                      <div className="text-left">
+                        <p className="font-semibold text-stone-900 text-sm">{event.clientName}</p>
+                        <p className="text-xs text-stone-400">{event.name}</p>
+                      </div>
+                      <Badge variant={filledCount >= 4 ? 'success' : filledCount >= 2 ? 'warning' : 'default'}>
+                        {filledCount}/5 categories filled
+                      </Badge>
                     </div>
-                    <div className="text-left">
-                      <p className="font-semibold text-stone-900 text-sm">{event.clientName}</p>
-                      <p className="text-xs text-stone-400">{event.name}</p>
-                    </div>
-                    <Badge variant={filledCount >= 4 ? 'success' : filledCount >= 2 ? 'warning' : 'default'}>
-                      {filledCount}/5 categories filled
-                    </Badge>
-                  </div>
-                  {isOpen ? <ChevronUp size={16} className="text-stone-400" /> : <ChevronDown size={16} className="text-stone-400" />}
-                </button>
-              </CardHeader>
+                    {isOpen ? <ChevronUp size={16} className="text-stone-400" /> : <ChevronDown size={16} className="text-stone-400" />}
+                  </button>
+                </CardHeader>
 
-              {isOpen && (
-                <CardBody className="space-y-6 pt-4">
-                  {/* Style */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <Heart size={14} className="text-rose-400" />
-                      <p className="text-sm font-medium text-stone-700">Style Preferences</p>
+                {isOpen && (
+                  <CardBody className="space-y-6 pt-4">
+                    {/* Style */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Heart size={14} className="text-rose-400" />
+                        <p className="text-sm font-medium text-stone-700">Style Preferences</p>
+                      </div>
+                      <ToggleChipGroup
+                        options={STYLE_OPTIONS}
+                        selected={prefs.style}
+                        onChange={(v) => handlePrefChange(event.id, 'style', v)}
+                        colorClass="bg-rose-50 border-rose-300 text-rose-600"
+                      />
                     </div>
-                    <ToggleChipGroup
-                      options={STYLE_OPTIONS}
-                      selected={prefs.style}
-                      onChange={(v) => handlePrefChange(event.id, 'style', v)}
-                      colorClass="bg-rose-50 border-rose-300 text-rose-600"
-                    />
-                  </div>
 
-                  {/* Colors */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <Palette size={14} className="text-brand-400" />
-                      <p className="text-sm font-medium text-stone-700">Color Palette</p>
+                    {/* Colors */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Palette size={14} className="text-brand-400" />
+                        <p className="text-sm font-medium text-stone-700">Color Palette</p>
+                      </div>
+                      <ToggleChipGroup
+                        options={COLOR_OPTIONS}
+                        selected={prefs.colorPalette}
+                        onChange={(v) => handlePrefChange(event.id, 'colorPalette', v)}
+                        colorClass="bg-brand-50 border-brand-300 text-brand-600"
+                      />
+                      <div className="mt-2 flex gap-1.5">
+                        {prefs.colorPalette.map((color) => (
+                          <div key={color} className="flex items-center gap-1 text-xs bg-stone-50 px-2 py-1 rounded-full border border-stone-100 text-stone-600">
+                            <div className="w-2.5 h-2.5 rounded-full bg-brand-300" />
+                            {color}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <ToggleChipGroup
-                      options={COLOR_OPTIONS}
-                      selected={prefs.colorPalette}
-                      onChange={(v) => handlePrefChange(event.id, 'colorPalette', v)}
-                      colorClass="bg-brand-50 border-brand-300 text-brand-600"
-                    />
-                    <div className="mt-2 flex gap-1.5">
-                      {prefs.colorPalette.map((color) => (
-                        <div key={color} className="flex items-center gap-1 text-xs bg-stone-50 px-2 py-1 rounded-full border border-stone-100 text-stone-600">
-                          <div className="w-2.5 h-2.5 rounded-full bg-brand-300" />
-                          {color}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
 
-                  {/* Dietary */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <Utensils size={14} className="text-emerald-400" />
-                      <p className="text-sm font-medium text-stone-700">Dietary Requirements</p>
+                    {/* Dietary */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Utensils size={14} className="text-emerald-400" />
+                        <p className="text-sm font-medium text-stone-700">Dietary Requirements</p>
+                      </div>
+                      <ToggleChipGroup
+                        options={DIETARY_OPTIONS}
+                        selected={prefs.dietary}
+                        onChange={(v) => handlePrefChange(event.id, 'dietary', v)}
+                        colorClass="bg-emerald-50 border-emerald-300 text-emerald-600"
+                      />
                     </div>
-                    <ToggleChipGroup
-                      options={DIETARY_OPTIONS}
-                      selected={prefs.dietary}
-                      onChange={(v) => handlePrefChange(event.id, 'dietary', v)}
-                      colorClass="bg-emerald-50 border-emerald-300 text-emerald-600"
-                    />
-                  </div>
 
-                  {/* Music */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <Music size={14} className="text-sky-400" />
-                      <p className="text-sm font-medium text-stone-700">Music & Entertainment</p>
+                    {/* Music */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Music size={14} className="text-sky-400" />
+                        <p className="text-sm font-medium text-stone-700">Music & Entertainment</p>
+                      </div>
+                      <ToggleChipGroup
+                        options={MUSIC_OPTIONS}
+                        selected={prefs.musicGenre}
+                        onChange={(v) => handlePrefChange(event.id, 'musicGenre', v)}
+                        colorClass="bg-sky-50 border-sky-300 text-sky-600"
+                      />
                     </div>
-                    <ToggleChipGroup
-                      options={MUSIC_OPTIONS}
-                      selected={prefs.musicGenre}
-                      onChange={(v) => handlePrefChange(event.id, 'musicGenre', v)}
-                      colorClass="bg-sky-50 border-sky-300 text-sky-600"
-                    />
-                  </div>
 
-                  {/* Dislikes */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <ThumbsDown size={14} className="text-stone-400" />
-                      <p className="text-sm font-medium text-stone-700">Things to Avoid</p>
+                    {/* Dislikes */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <ThumbsDown size={14} className="text-stone-400" />
+                        <p className="text-sm font-medium text-stone-700">Things to Avoid</p>
+                      </div>
+                      <TagInput
+                        value={prefs.dislikes}
+                        onChange={(v) => handlePrefChange(event.id, 'dislikes', v)}
+                        placeholder="neon colors, loud music, formal seating…"
+                      />
                     </div>
-                    <TagInput
-                      value={prefs.dislikes}
-                      onChange={(v) => handlePrefChange(event.id, 'dislikes', v)}
-                      placeholder="neon colors, loud music, formal seating…"
-                    />
-                  </div>
 
-                  {/* Notes */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <StickyNote size={14} className="text-amber-400" />
-                      <p className="text-sm font-medium text-stone-700">Planner Notes</p>
+                    {/* Notes */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <StickyNote size={14} className="text-amber-400" />
+                        <p className="text-sm font-medium text-stone-700">Planner Notes</p>
+                      </div>
+                      <Textarea
+                        rows={3}
+                        placeholder="Additional context for AI generation — client quirks, stories, special requests..."
+                        value={prefs.notes}
+                        onChange={(e) => handlePrefChange(event.id, 'notes', e.target.value)}
+                      />
                     </div>
-                    <Textarea
-                      rows={3}
-                      placeholder="Additional context for AI generation — client quirks, stories, special requests..."
-                      value={prefs.notes}
-                      onChange={(e) => handlePrefChange(event.id, 'notes', e.target.value)}
-                    />
-                  </div>
-                </CardBody>
-              )}
-            </Card>
-          )
-        })}
-      </div>
+                  </CardBody>
+                )}
+              </Card>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

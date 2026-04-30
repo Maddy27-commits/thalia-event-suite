@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CalendarDays, Store, Wand2, TrendingUp, CheckCircle2, AlertCircle, Bell, ArrowRight } from 'lucide-react'
+import { CalendarDays, Store, Wand2, TrendingUp, CheckCircle2, AlertCircle, Bell, ArrowRight, Plus } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../../store'
 import { usePlannerEvents } from '../../hooks/usePlannerEvents'
@@ -119,6 +119,22 @@ export function PlannerDashboard() {
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <Button
+            variant="ghost"
+            icon={<Plus size={15} />}
+            size="sm"
+            onClick={() => navigate('/planner/events', { state: { openCreate: true } })}
+            className="sm:hidden"
+          >
+          </Button>
+          <Button
+            variant="ghost"
+            icon={<Plus size={15} />}
+            onClick={() => navigate('/planner/events', { state: { openCreate: true } })}
+            className="hidden sm:inline-flex"
+          >
+            New Event
+          </Button>
+          <Button
             icon={<Wand2 size={15} />}
             size="sm"
             onClick={() => navigate('/planner/ai-generator')}
@@ -178,7 +194,14 @@ export function PlannerDashboard() {
           <div className="rounded-2xl border-2 border-dashed border-stone-200 py-14 text-center">
             <CalendarDays size={28} className="mx-auto text-stone-200 mb-3" />
             <p className="text-stone-400 text-sm font-medium">No upcoming events</p>
-            <p className="text-stone-300 text-xs mt-1">Create your first event to get started</p>
+            <p className="text-stone-300 text-xs mt-1 mb-4">Create your first event to get started</p>
+            <button
+              onClick={() => navigate('/planner/events', { state: { openCreate: true } })}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-600 hover:text-brand-700 bg-brand-50 hover:bg-brand-100 px-4 py-2 rounded-xl transition-all"
+            >
+              <Plus size={13} />
+              New Event
+            </button>
           </div>
         ) : (
           <div className="space-y-3">

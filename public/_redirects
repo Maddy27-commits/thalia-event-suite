@@ -1,5 +1,2 @@
-# Cloudflare Pages — SPA routing
-# Any path that isn't a real file or a Pages Function gets served index.html
-# so React Router can handle the navigation client-side.
-/api/*  /api/:splat  200
-/*      /index.html  200
+# Cloudflare Pages — SPA routing is handled via 404.html (see package.json build script).
+# Pages Functions in functions/ are routed automatically — no rules needed here.

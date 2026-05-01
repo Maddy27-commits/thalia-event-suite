@@ -54,6 +54,39 @@ const SUB_OFFSETS: Record<string, number> = {
 
 const offsetFor = (subName: string): number => SUB_OFFSETS[subName] ?? 30
 
+// ─── Deduplication helpers ──────────────────────────────────────────────────────
+/**
+ * Deduplicate an array of items by `id`, keeping the entry with the latest
+ * `updatedAt` (or `createdAt` if there's no `updatedAt`).
+ */
+function dedupeById<T extends { id: string; updatedAt?: string; createdAt?: string }>(
+  items: T[],
+): T[] {
+  const map = new Map<string, T>()
+  for (const item of items) {
+    const existing = map.get(item.id)
+    if (!existing) {
+      map.set(item.id, item)
+    } else {
+      const existingTs = existing.updatedAt ?? existing.createdAt ?? ''
+      const newTs      = item.updatedAt      ?? item.createdAt      ?? ''
+      if (newTs > existingTs) map.set(item.id, item)
+    }
+  }
+  return [...map.values()]
+}
+
+/** Deduplicate planner accounts by email, keeping the most recently created one. */
+function dedupeByEmail(planners: RegisteredPlanner[]): RegisteredPlanner[] {
+  const map = new Map<string, RegisteredPlanner>()
+  for (const p of planners) {
+    const key      = p.email.toLowerCase()
+    const existing = map.get(key)
+    if (!existing || p.createdAt > existing.createdAt) map.set(key, p)
+  }
+  return [...map.values()]
+}
+
 // ─── Dedicated accounts store (version-independent) ────────────────────────────
 // Stored under a key that never changes, so accounts survive any future storage
 // version bumps. We also try to recover accounts from older versioned keys.
@@ -62,28 +95,37 @@ const ACCOUNTS_KEY = 'thalia-accounts'
 function loadAccounts(): RegisteredPlanner[] {
   try {
     const raw = localStorage.getItem(ACCOUNTS_KEY)
-    if (raw) return JSON.parse(raw) as RegisteredPlanner[]
+    if (raw) {
+      const parsed = JSON.parse(raw) as RegisteredPlanner[]
+      return dedupeByEmail(parsed)
+    }
 
-    // Recovery: scan older versioned Zustand keys for accounts
+    // Recovery: scan older versioned Zustand keys for accounts that haven't
+    // been migrated yet (happens when upgrading from pre-fix versions).
+    const recovered: RegisteredPlanner[] = []
     for (const oldKey of ['thalia-storage-v6', 'thalia-storage-v5', 'thalia-storage-v4', 'thalia-storage-v3']) {
       try {
         const oldRaw = localStorage.getItem(oldKey)
         if (!oldRaw) continue
         const parsed = JSON.parse(oldRaw)
         const accounts = parsed?.state?.registeredPlanners as RegisteredPlanner[] | undefined
-        if (accounts?.length) {
-          // Migrate to the dedicated key and stop scanning
-          localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts))
-          return accounts
-        }
+        if (accounts?.length) recovered.push(...accounts)
       } catch { /* ignore parse errors */ }
+    }
+    if (recovered.length) {
+      const deduped = dedupeByEmail(recovered)
+      localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(deduped))
+      return deduped
     }
     return []
   } catch { return [] }
 }
 
 function saveAccounts(accounts: RegisteredPlanner[]): void {
-  try { localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts)) } catch { /* ignore */ }
+  try {
+    // Always deduplicate before writing so the key stays clean
+    localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(dedupeByEmail(accounts)))
+  } catch { /* ignore */ }
 }
 
 // ─── Sub-category factory helpers ──────────────────────────────────────────────
@@ -430,7 +472,7 @@ function seedVenueConversation(): { messages: TaskMessage[]; phase: SubCategoryT
         id: uid(),
         author: 'client',
         authorName: 'Aisha',
-        channel: 'whatsapp',
+        channel: 'in-app',
         timestamp: new Date(now - dayMs * 14).toISOString(),
         phase: 'briefing',
         content: "Hi! For the venue we'd really love something with a garden — natural light is super important. Indoor backup matters because of monsoon. Trying to keep it under $5K. Definitely no banquet-hall vibe please 🙏",
@@ -1071,10 +1113,13 @@ export const useStore = create<AppState>()(
       name: 'thalia-storage-v6',
       version: 6,
       onRehydrateStorage: () => (state) => {
-        // Backfill new task-level fields for users upgrading from older versions.
-        if (state?.events) state.events = state.events.map(migrateEvent)
-        // Always load the latest accounts from the dedicated, version-independent key.
-        if (state) state.registeredPlanners = loadAccounts()
+        if (!state) return
+        // Migrate task fields + deduplicate events (keep latest updatedAt per id)
+        if (state.events) state.events = dedupeById(state.events.map(migrateEvent))
+        // Deduplicate vendors (keep latest createdAt per id)
+        if (state.vendors) state.vendors = dedupeById(state.vendors)
+        // Always load accounts from the dedicated, version-independent key
+        state.registeredPlanners = loadAccounts()
       },
       partialize: (state) => ({
         events: state.events,

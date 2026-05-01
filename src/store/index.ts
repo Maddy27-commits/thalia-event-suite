@@ -54,6 +54,38 @@ const SUB_OFFSETS: Record<string, number> = {
 
 const offsetFor = (subName: string): number => SUB_OFFSETS[subName] ?? 30
 
+// ─── Dedicated accounts store (version-independent) ────────────────────────────
+// Stored under a key that never changes, so accounts survive any future storage
+// version bumps. We also try to recover accounts from older versioned keys.
+const ACCOUNTS_KEY = 'thalia-accounts'
+
+function loadAccounts(): RegisteredPlanner[] {
+  try {
+    const raw = localStorage.getItem(ACCOUNTS_KEY)
+    if (raw) return JSON.parse(raw) as RegisteredPlanner[]
+
+    // Recovery: scan older versioned Zustand keys for accounts
+    for (const oldKey of ['thalia-storage-v6', 'thalia-storage-v5', 'thalia-storage-v4', 'thalia-storage-v3']) {
+      try {
+        const oldRaw = localStorage.getItem(oldKey)
+        if (!oldRaw) continue
+        const parsed = JSON.parse(oldRaw)
+        const accounts = parsed?.state?.registeredPlanners as RegisteredPlanner[] | undefined
+        if (accounts?.length) {
+          // Migrate to the dedicated key and stop scanning
+          localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts))
+          return accounts
+        }
+      } catch { /* ignore parse errors */ }
+    }
+    return []
+  } catch { return [] }
+}
+
+function saveAccounts(accounts: RegisteredPlanner[]): void {
+  try { localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts)) } catch { /* ignore */ }
+}
+
 // ─── Sub-category factory helpers ──────────────────────────────────────────────
 function mkTask(label: string, off: number, ceremonyDate: string): SubCategoryTask {
   return {
@@ -702,7 +734,7 @@ export const useStore = create<AppState>()(
     (set, get) => ({
       role: 'planner',
       session: null,
-      registeredPlanners: [],
+      registeredPlanners: loadAccounts(),
       activeEventId: 'e1',
       events: SAMPLE_EVENTS,
       vendors: SAMPLE_VENDORS,
@@ -746,7 +778,9 @@ export const useStore = create<AppState>()(
         )
         if (existing) return 'email_taken'
         const planner: RegisteredPlanner = { ...data, createdAt: new Date().toISOString() }
-        set((s) => ({ registeredPlanners: [...s.registeredPlanners, planner] }))
+        const updated = [...get().registeredPlanners, planner]
+        set({ registeredPlanners: updated })
+        saveAccounts(updated) // persist to version-independent key
         return 'ok'
       },
 
@@ -1037,9 +1071,10 @@ export const useStore = create<AppState>()(
       name: 'thalia-storage-v6',
       version: 6,
       onRehydrateStorage: () => (state) => {
-        // Backfill new task-level fields (currentPhase, messages, options)
-        // for users upgrading from older schema versions.
+        // Backfill new task-level fields for users upgrading from older versions.
         if (state?.events) state.events = state.events.map(migrateEvent)
+        // Always load the latest accounts from the dedicated, version-independent key.
+        if (state) state.registeredPlanners = loadAccounts()
       },
       partialize: (state) => ({
         events: state.events,
@@ -1049,8 +1084,8 @@ export const useStore = create<AppState>()(
         plannerProfile: state.plannerProfile,
         clientProfile: state.clientProfile,
         session: state.session,
-        registeredPlanners: state.registeredPlanners,
         role: state.role,
+        // registeredPlanners is NOT here — it lives in thalia-accounts (version-independent)
       }),
     }
   )

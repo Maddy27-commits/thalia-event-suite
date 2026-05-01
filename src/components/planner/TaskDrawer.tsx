@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import {
-  X, Check, MessageSquare, Mail, Phone, MessageCircle, StickyNote, Sparkles,
+  X, Check, MessageSquare, Mail, StickyNote, Sparkles,
   ThumbsUp, ThumbsDown, AlertTriangle, Star, Trash2, Plus, Send, Loader2,
   ChevronRight, CheckCircle2, Calendar,
 } from 'lucide-react'
@@ -21,12 +21,14 @@ interface TaskDrawerProps {
   onClose: () => void
 }
 
-const CHANNEL_META: Record<MessageChannel, { label: string; icon: React.ElementType; color: string }> = {
-  whatsapp: { label: 'WhatsApp', icon: MessageCircle, color: 'text-emerald-600 bg-emerald-50 ring-emerald-200' },
-  email:    { label: 'Email',    icon: Mail,          color: 'text-blue-600 bg-blue-50 ring-blue-200'           },
-  sms:      { label: 'SMS',      icon: Phone,         color: 'text-violet-600 bg-violet-50 ring-violet-200'     },
-  'in-app': { label: 'In-app',   icon: MessageSquare, color: 'text-stone-700 bg-stone-100 ring-stone-200'        },
-  note:     { label: 'Note',     icon: StickyNote,    color: 'text-amber-700 bg-amber-50 ring-amber-200'         },
+// Keep all channels for backward-compat with persisted messages; only expose in-app/note/email in UI
+const CHANNEL_META: Record<string, { label: string; icon: React.ElementType; color: string }> = {
+  'in-app':  { label: 'Chat',    icon: MessageSquare, color: 'text-brand-700 bg-brand-50 ring-brand-100'   },
+  note:      { label: 'Note',    icon: StickyNote,    color: 'text-amber-700 bg-amber-50 ring-amber-200'   },
+  email:     { label: 'Email',   icon: Mail,          color: 'text-blue-600 bg-blue-50 ring-blue-200'      },
+  // Legacy — may appear in existing messages, not offered as new options
+  whatsapp:  { label: 'WhatsApp', icon: Mail,         color: 'text-stone-600 bg-stone-100 ring-stone-200'  },
+  sms:       { label: 'SMS',      icon: Mail,         color: 'text-stone-600 bg-stone-100 ring-stone-200'  },
 }
 
 const AUTHOR_META: Record<MessageAuthor, { label: string; color: string }> = {
@@ -67,7 +69,7 @@ export function TaskDrawer({ event, ceremony, sub, task, onClose }: TaskDrawerPr
 
   // ── Compose new message form ──
   const [draft, setDraft] = useState('')
-  const [draftChannel, setDraftChannel] = useState<MessageChannel>('whatsapp')
+  const [draftChannel, setDraftChannel] = useState<MessageChannel>('in-app')
   const [draftAuthor, setDraftAuthor] = useState<MessageAuthor>('client')
   const [draftAuthorName, setDraftAuthorName] = useState(event.clientName.split(' ')[0] ?? '')
   const [extracting, setExtracting] = useState(false)
@@ -439,26 +441,26 @@ export function TaskDrawer({ event, ceremony, sub, task, onClose }: TaskDrawerPr
             )}
           </section>
 
-          {/* ── Conversation thread ── */}
+          {/* ── Discussion (in-app chat) ── */}
           <section>
             <div className="flex items-center justify-between mb-3">
               <div>
-                <h3 className="text-sm font-bold text-stone-900">Conversation Thread</h3>
-                <p className="text-[11px] text-stone-400">Cross-channel — paste client messages from WhatsApp / email / SMS into one timeline.</p>
+                <h3 className="text-sm font-bold text-stone-900">Discussion</h3>
+                <p className="text-[11px] text-stone-400">In-app chat between you and your client, scoped to this task.</p>
               </div>
 
-              {/* Channel filter */}
+              {/* Channel filter — only the 3 active channels */}
               <div className="flex items-center gap-1">
-                {(['all', 'whatsapp', 'email', 'sms', 'in-app', 'note'] as const).map(c => (
+                {(['all', 'in-app', 'note', 'email'] as const).map(c => (
                   <button
                     key={c}
-                    onClick={() => setChannelFilter(c)}
+                    onClick={() => setChannelFilter(c as MessageChannel | 'all')}
                     className={cn(
                       'text-[10px] px-2 py-1 rounded-md font-semibold uppercase tracking-wide transition-colors',
                       channelFilter === c ? 'bg-stone-900 text-white' : 'text-stone-400 hover:bg-stone-100',
                     )}
                   >
-                    {c === 'all' ? 'All' : CHANNEL_META[c].label}
+                    {c === 'all' ? 'All' : c === 'in-app' ? 'Chat' : CHANNEL_META[c].label}
                   </button>
                 ))}
               </div>
@@ -481,67 +483,71 @@ export function TaskDrawer({ event, ceremony, sub, task, onClose }: TaskDrawerPr
         </div>
 
         {/* ── Compose footer ── */}
-        <div className="border-t border-stone-100 px-6 py-3 bg-white shrink-0">
-          <div className="flex items-center gap-2 mb-2 text-[11px]">
-            {/* Channel selector */}
-            <div className="flex items-center gap-1 bg-stone-50 rounded-lg p-0.5 ring-1 ring-stone-100">
-              {(['whatsapp', 'email', 'sms', 'in-app', 'note'] as MessageChannel[]).map(c => {
-                const meta = CHANNEL_META[c]
-                const Icon = meta.icon
+        <div className="border-t border-stone-100 bg-white shrink-0">
+          {/* Mode + sender row */}
+          <div className="flex items-center gap-2 px-4 pt-3 pb-1">
+            {/* Chat / Note tabs */}
+            <div className="flex items-center gap-1 bg-stone-50 rounded-xl p-0.5 ring-1 ring-stone-100">
+              {(['in-app', 'note'] as MessageChannel[]).map(c => {
+                const Icon = CHANNEL_META[c].icon
                 return (
                   <button
                     key={c}
                     onClick={() => setDraftChannel(c)}
                     className={cn(
-                      'flex items-center gap-1 px-2 py-1 rounded-md font-semibold transition-colors',
-                      draftChannel === c ? 'bg-white shadow-sm text-stone-900' : 'text-stone-400 hover:text-stone-600',
+                      'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition-all',
+                      draftChannel === c
+                        ? c === 'note'
+                          ? 'bg-amber-50 text-amber-700 ring-1 ring-amber-200 shadow-sm'
+                          : 'bg-brand-50 text-brand-700 ring-1 ring-brand-200 shadow-sm'
+                        : 'text-stone-400 hover:text-stone-600',
                     )}
-                    title={meta.label}
                   >
-                    <Icon size={11} /> {meta.label}
+                    <Icon size={11} />
+                    {c === 'in-app' ? 'Chat' : 'Private Note'}
                   </button>
                 )
               })}
             </div>
 
-            {/* Author selector */}
+            {/* Sender */}
             <select
               value={draftAuthor}
               onChange={e => setDraftAuthor(e.target.value as MessageAuthor)}
-              className="text-xs border border-stone-200 rounded-md px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-brand-400 font-medium"
+              className="ml-auto text-xs border border-stone-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-brand-400 font-medium text-stone-700"
             >
-              <option value="client">From client</option>
-              <option value="planner">From you</option>
-              <option value="vendor">From vendor</option>
+              <option value="planner">You (planner)</option>
+              <option value="client">Client</option>
+              <option value="vendor">Vendor</option>
             </select>
-
             {draftAuthor === 'client' && (
               <input
                 value={draftAuthorName}
                 onChange={e => setDraftAuthorName(e.target.value)}
-                placeholder="Sender name"
-                className="text-xs border border-stone-200 rounded-md px-2 py-1 w-28 focus:outline-none focus:ring-2 focus:ring-brand-400"
+                placeholder="Name"
+                className="text-xs border border-stone-200 rounded-lg px-2 py-1.5 w-24 focus:outline-none focus:ring-2 focus:ring-brand-400"
               />
             )}
-
-            <span className="text-stone-300 ml-auto">→ phase: <span className="font-semibold text-stone-600">{TASK_PHASES.find(p => p.id === activePhase)?.label}</span></span>
           </div>
 
-          <div className="flex gap-2 items-end">
+          {/* Textarea + send */}
+          <div className="flex gap-2 items-end px-4 pb-3">
             <textarea
               value={draft}
               onChange={e => setDraft(e.target.value)}
               placeholder={
-                draftAuthor === 'client'
-                  ? "Paste the client's WhatsApp / email / SMS message here…"
-                  : 'Type your update / note…'
+                draftChannel === 'note'
+                  ? 'Private planner note (not visible to client)…'
+                  : draftAuthor === 'client'
+                    ? `${draftAuthorName || event.clientName} says…`
+                    : 'Type a message…'
               }
               rows={2}
-              className="flex-1 text-sm border border-stone-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"
+              className="flex-1 text-sm border border-stone-200 rounded-2xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none bg-stone-50"
               onKeyDown={e => {
                 if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
                   e.preventDefault()
-                  handleAddMessage(draftAuthor === 'client')
+                  handleAddMessage(draftAuthor === 'client' && draftChannel === 'in-app')
                 }
               }}
             />
@@ -549,27 +555,28 @@ export function TaskDrawer({ event, ceremony, sub, task, onClose }: TaskDrawerPr
               <button
                 onClick={() => handleAddMessage(false)}
                 disabled={!draft.trim()}
-                className="flex items-center gap-1 text-xs font-semibold text-stone-700 bg-stone-100 hover:bg-stone-200 px-3 py-2 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                title="Add to thread without AI extraction"
+                className={cn(
+                  'flex items-center justify-center gap-1.5 text-xs font-semibold px-3 py-2.5 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all',
+                  draftChannel === 'note'
+                    ? 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+                    : 'bg-brand-500 text-white hover:bg-brand-600 shadow-sm',
+                )}
+                title="Send (⌘↵)"
               >
-                <Send size={12} /> Add
+                <Send size={13} />
               </button>
-              {draftAuthor === 'client' && (
+              {draftAuthor === 'client' && draftChannel === 'in-app' && (
                 <button
                   onClick={() => handleAddMessage(true)}
                   disabled={!draft.trim() || extracting}
-                  className="flex items-center gap-1 text-xs font-semibold text-white bg-gradient-to-br from-violet-500 to-fuchsia-500 hover:opacity-90 px-3 py-2 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-opacity shadow-sm"
-                  title="Add and extract preferences/concerns/sentiment"
+                  className="flex items-center justify-center gap-1 text-xs font-semibold text-violet-600 hover:text-violet-700 bg-violet-50 hover:bg-violet-100 px-2 py-2 rounded-xl disabled:opacity-40 transition-colors"
+                  title="Send and extract AI insights"
                 >
                   {extracting ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
-                  {extracting ? 'Extracting…' : 'Add & Extract'}
                 </button>
               )}
             </div>
           </div>
-          <p className="text-[10px] text-stone-400 mt-1.5">
-            AI extraction uses Claude — preferences, concerns, and sentiment surface as chips on the message.
-          </p>
         </div>
       </div>
     </div>
@@ -579,10 +586,11 @@ export function TaskDrawer({ event, ceremony, sub, task, onClose }: TaskDrawerPr
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
 function MessageBubble({ message, onDelete }: { message: TaskMessage; onDelete: () => void }) {
-  const ch = CHANNEL_META[message.channel]
+  const ch = CHANNEL_META[message.channel] ?? CHANNEL_META['in-app']
   const author = AUTHOR_META[message.author]
-  const ChannelIcon = ch.icon
   const fromClient = message.author === 'client'
+  const isNote = message.channel === 'note'
+  const isEmail = message.channel === 'email'
 
   return (
     <div className={cn('group flex gap-2.5', fromClient ? '' : 'flex-row-reverse')}>
@@ -592,13 +600,18 @@ function MessageBubble({ message, onDelete }: { message: TaskMessage; onDelete: 
 
       <div className={cn('flex-1 min-w-0', fromClient ? '' : 'flex flex-col items-end')}>
         <div className="flex items-center gap-2 mb-1">
-          <span className={cn('inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md ring-1 font-semibold', ch.color)}>
-            <ChannelIcon size={9} /> {ch.label}
-          </span>
+          {isNote && (
+            <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md ring-1 font-semibold text-amber-700 bg-amber-50 ring-amber-200">
+              <StickyNote size={9} /> Note
+            </span>
+          )}
+          {isEmail && (
+            <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md ring-1 font-semibold text-blue-600 bg-blue-50 ring-blue-200">
+              <Mail size={9} /> Email
+            </span>
+          )}
           <span className="text-[10px] text-stone-500 font-medium">{message.authorName ?? author.label}</span>
           <span className="text-[10px] text-stone-300">· {timeAgo(message.timestamp)}</span>
-          <span className="text-[10px] text-stone-300 font-medium uppercase tracking-wide">· {message.phase}</span>
-
           <button
             onClick={onDelete}
             className="ml-1 text-stone-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -610,11 +623,13 @@ function MessageBubble({ message, onDelete }: { message: TaskMessage; onDelete: 
 
         <div className={cn(
           'rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed max-w-[92%] whitespace-pre-wrap break-words',
-          fromClient
-            ? 'bg-stone-50 text-stone-800 rounded-tl-sm'
-            : message.author === 'planner'
-              ? 'bg-brand-500 text-white rounded-tr-sm'
-              : 'bg-amber-50 text-amber-900 rounded-tr-sm',
+          isNote
+            ? 'bg-amber-50 text-amber-900 rounded-tl-sm border border-dashed border-amber-200'
+            : fromClient
+              ? 'bg-stone-100 text-stone-800 rounded-tl-sm'
+              : message.author === 'planner'
+                ? 'bg-brand-500 text-white rounded-tr-sm'
+                : 'bg-stone-100 text-stone-800 rounded-tl-sm',
         )}>
           {message.content}
         </div>

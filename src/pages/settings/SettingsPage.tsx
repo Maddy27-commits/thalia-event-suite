@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
-  User, MessageCircle, Mail, Palette,
-  Check, Save, Phone, AtSign, Info,
+  User, Mail, Palette,
+  Check, Save, AtSign,
 } from 'lucide-react'
 import { useStore } from '../../store'
 import { Card, CardBody } from '../../components/ui/Card'
@@ -107,19 +107,6 @@ function PlannerSettings() {
         </CardBody>
       </Card>
 
-      {/* WhatsApp */}
-      <Card>
-        <CardBody className="py-5 space-y-4">
-          <SectionLabel icon={MessageCircle} label="WhatsApp" />
-          <div className="flex items-start gap-3 bg-[#25D366]/5 ring-1 ring-[#25D366]/20 rounded-xl px-4 py-3 text-sm text-stone-600">
-            <Info size={14} className="text-[#25D366] shrink-0 mt-0.5" />
-            <p>WhatsApp doesn't allow direct sending from web portals — messages open in the WhatsApp app with content pre-filled so you just tap Send. Save your number here so clients can also reach you back.</p>
-          </div>
-          <Input label="Your WhatsApp Number" placeholder="+1 415 555 0000"
-            value={form.whatsappNumber} onChange={(e) => set('whatsappNumber', e.target.value)} />
-        </CardBody>
-      </Card>
-
       {/* Email — auto-managed */}
       <Card>
         <CardBody className="py-4 px-5">
@@ -152,44 +139,34 @@ function ClientSettings() {
   const { clientProfile, setClientProfile, events, updateEvent } = useStore()
   const [form, setForm] = useState({ ...clientProfile })
   const [saved, setSaved] = useState(false)
-  const [syncedCount, setSyncedCount] = useState(0)
 
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }))
 
   const handleSave = () => {
     setClientProfile(form)
 
-    // Sync contact info to ALL events that match this client (by previous email
-    // or name, so the user can update their email and still propagate it).
+    // Sync email + name changes back to matching events
     const prevEmail = clientProfile.email.trim().toLowerCase()
     const prevName  = clientProfile.name.trim().toLowerCase()
     const newName   = form.name.trim()
     const newEmail  = form.email.trim()
-    const newPhone  = form.whatsappNumber.trim()
 
-    let count = 0
     events.forEach(e => {
-      const matchesEmail = prevEmail && e.clientEmail.trim().toLowerCase() === prevEmail
-      const matchesName  = prevName  && e.clientName.trim().toLowerCase()  === prevName
-      // Also match against the new email/name in case the user is updating their profile for the first time
-      const matchesNewEmail = newEmail && e.clientEmail.trim().toLowerCase() === newEmail.toLowerCase()
-      const matchesNewName  = newName  && e.clientName.trim().toLowerCase()  === newName.toLowerCase()
+      const matchesEmail    = prevEmail && e.clientEmail.trim().toLowerCase() === prevEmail
+      const matchesName     = prevName  && e.clientName.trim().toLowerCase()  === prevName
+      const matchesNewEmail = newEmail  && e.clientEmail.trim().toLowerCase() === newEmail.toLowerCase()
+      const matchesNewName  = newName   && e.clientName.trim().toLowerCase()  === newName.toLowerCase()
 
       if (matchesEmail || matchesName || matchesNewEmail || matchesNewName) {
         const updates: Record<string, string> = {}
-        if (newPhone) updates.clientPhone = newPhone
         if (newEmail) updates.clientEmail = newEmail
         if (newName)  updates.clientName  = newName
-        if (Object.keys(updates).length > 0) {
-          updateEvent(e.id, updates)
-          count++
-        }
+        if (Object.keys(updates).length > 0) updateEvent(e.id, updates)
       }
     })
 
-    setSyncedCount(count)
     setSaved(true)
-    setTimeout(() => { setSaved(false); setSyncedCount(0) }, 4000)
+    setTimeout(() => setSaved(false), 3000)
   }
 
   const initial = form.name?.trim() ? form.name.charAt(0).toUpperCase() : 'C'
@@ -218,23 +195,8 @@ function ClientSettings() {
 
       <Card>
         <CardBody className="py-5 space-y-4">
-          <SectionLabel icon={Phone} label="WhatsApp Number" />
-          <div className="flex items-start gap-3 bg-[#25D366]/5 ring-1 ring-[#25D366]/20 rounded-xl px-4 py-3 text-sm text-stone-600">
-            <Info size={14} className="text-[#25D366] shrink-0 mt-0.5" />
-            <p>Your planner will send approval reminders to this number via WhatsApp.</p>
-          </div>
-          <Input label="WhatsApp Number" placeholder="+1 415 555 0101"
-            value={form.whatsappNumber} onChange={(e) => set('whatsappNumber', e.target.value)} />
-        </CardBody>
-      </Card>
-
-      <Card>
-        <CardBody className="py-5 space-y-4">
           <SectionLabel icon={AtSign} label="Email Address" />
-          <div className="flex items-start gap-3 bg-[#EA4335]/5 ring-1 ring-[#EA4335]/20 rounded-xl px-4 py-3 text-sm text-stone-600">
-            <Info size={14} className="text-[#EA4335] shrink-0 mt-0.5" />
-            <p>Your planner will email design concept reviews and event updates directly to this address.</p>
-          </div>
+          <p className="text-xs text-stone-400 -mt-2">Your planner uses this email to send concept reviews and event updates.</p>
           <Input label="Email Address" type="email" placeholder="you@example.com"
             value={form.email} onChange={(e) => set('email', e.target.value)} />
         </CardBody>
@@ -244,7 +206,7 @@ function ClientSettings() {
         {saved ? (
           <div className="flex items-center gap-2 bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 rounded-xl px-4 py-2.5 text-sm font-medium animate-fade-in">
             <Check size={14} />
-            Changes saved{syncedCount > 0 ? ` — synced to ${syncedCount} event${syncedCount !== 1 ? 's' : ''}` : ''}
+            Changes saved
           </div>
         ) : <span />}
         <Button variant="client" icon={<Save size={15} />} onClick={handleSave} className="ml-auto">
@@ -271,7 +233,7 @@ export function SettingsPage() {
           </h1>
           <p className="text-stone-500 mt-1 text-sm">
             {isPlanner
-              ? 'Manage your profile, WhatsApp contact, and notification preferences.'
+              ? 'Manage your profile, avatar, and contact preferences.'
               : 'Update your contact details so your planner can reach you.'}
           </p>
         </div>

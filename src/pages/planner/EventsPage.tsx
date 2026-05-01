@@ -41,6 +41,17 @@ const statusGradient: Record<EventStatus, string> = {
   cancelled: 'from-red-400 to-rose-500',
 }
 
+const TYPE_DEFAULTS: Record<EventType, { name: string; theme: string; guestCount: string; budget: string }> = {
+  wedding:     { name: "Sarah & Mark's Wedding",    theme: 'Romantic Garden Luxe',     guestCount: '150', budget: '40000' },
+  birthday:    { name: "Emma's 30th Birthday",       theme: 'Tropical Paradise',         guestCount: '60',  budget: '8000'  },
+  anniversary: { name: "The Smiths' 25th Anniversary", theme: 'Silver & Gold Elegance', guestCount: '80',  budget: '12000' },
+  corporate:   { name: 'Q4 Company Retreat',          theme: 'Modern Minimalist',         guestCount: '120', budget: '25000' },
+  gala:        { name: 'Annual Charity Gala',          theme: 'Black Tie Glamour',         guestCount: '200', budget: '50000' },
+  conference:  { name: 'Tech Innovation Summit',       theme: 'Innovation Forward',        guestCount: '300', budget: '35000' },
+  graduation:  { name: "Alex's Graduation Celebration", theme: 'Future is Bright',         guestCount: '50',  budget: '5000'  },
+  other:       { name: 'Special Celebration',           theme: 'Timeless & Personal',      guestCount: '80',  budget: '10000' },
+}
+
 interface EditForm {
   name: string; clientName: string; clientEmail: string; clientPhone: string
   type: EventType; date: string; venue: string; location: string
@@ -1014,6 +1025,20 @@ function CreateEventWizard({ open, onClose }: { open: boolean; onClose: () => vo
 
   const setF = (k: keyof NewEventForm, v: string) => setForm(f => ({ ...f, [k]: v }))
 
+  // Auto-fill sensible defaults when entering the details step
+  useEffect(() => {
+    if (step === 1 && form.type) {
+      const d = TYPE_DEFAULTS[form.type]
+      setForm(f => ({
+        ...f,
+        name:       f.name       || d.name,
+        theme:      f.theme      || d.theme,
+        guestCount: f.guestCount === '100'   ? d.guestCount : f.guestCount,
+        budget:     f.budget     === '20000' ? d.budget     : f.budget,
+      }))
+    }
+  }, [step, form.type])
+
   // When transitioning to step 2, generate default ceremonies based on type + date
   useEffect(() => {
     if (step === 2 && form.type && form.date) {
@@ -1187,7 +1212,7 @@ function CreateEventWizard({ open, onClose }: { open: boolean; onClose: () => vo
                   Your client uses this email address to sign in to their event portal. Double-check it's correct.
                 </p>
               </div>
-              <Input label="Client WhatsApp" value={form.clientPhone} onChange={e => setF('clientPhone', e.target.value)} placeholder="+1 415 555 0101" className="col-span-2" />
+              <Input label="Client Phone" value={form.clientPhone} onChange={e => setF('clientPhone', e.target.value)} placeholder="+1 415 555 0101" className="col-span-2" />
               <Input label="Venue" value={form.venue} onChange={e => setF('venue', e.target.value)} placeholder="The Rosewood Estate" className="col-span-2" />
               <Input label="Location / City" value={form.location} onChange={e => setF('location', e.target.value)} placeholder="Napa Valley, CA" />
               <Input label="Guest Count" type="number" value={form.guestCount} onChange={e => setF('guestCount', e.target.value)} />

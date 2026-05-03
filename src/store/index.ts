@@ -7,6 +7,7 @@ import type {
   AuthSession, RegisteredPlanner,
 } from '../types'
 import { offsetDate } from '../lib/utils'
+import { hashPassword, generateSalt, safeEqual } from '../lib/crypto'
 
 const uid = () => Math.random().toString(36).slice(2, 9)
 
@@ -814,16 +815,60 @@ export const useStore = create<AppState>()(
         set({ session: null, role: 'planner' })
       },
 
-      registerPlanner: (data) => {
+      registerPlanner: async (data) => {
         const existing = get().registeredPlanners.find(
           (p) => p.email.toLowerCase() === data.email.toLowerCase()
         )
         if (existing) return 'email_taken'
-        const planner: RegisteredPlanner = { ...data, createdAt: new Date().toISOString() }
+        const passwordSalt = generateSalt()
+        const passwordHash = await hashPassword(data.password, passwordSalt)
+        const planner: RegisteredPlanner = {
+          name: data.name,
+          businessName: data.businessName,
+          email: data.email,
+          passwordHash,
+          passwordSalt,
+          createdAt: new Date().toISOString(),
+        }
         const updated = [...get().registeredPlanners, planner]
         set({ registeredPlanners: updated })
         saveAccounts(updated) // persist to version-independent key
         return 'ok'
+      },
+
+      verifyPlannerPassword: async (email, password) => {
+        const planners = get().registeredPlanners
+        const match = planners.find((p) => p.email.toLowerCase() === email.toLowerCase())
+        if (!match) return false
+
+        // Legacy account migration: pre-hash records stored a plaintext `password`
+        // field. Detect via missing salt/hash and migrate transparently on first
+        // successful login.
+        const legacy = match as unknown as { password?: string }
+        if (!match.passwordSalt || !match.passwordHash) {
+          if (legacy.password && legacy.password === password) {
+            const passwordSalt = generateSalt()
+            const passwordHash = await hashPassword(password, passwordSalt)
+            const migrated: RegisteredPlanner = {
+              name: match.name,
+              businessName: match.businessName,
+              email: match.email,
+              passwordHash,
+              passwordSalt,
+              createdAt: match.createdAt,
+            }
+            const updated = planners.map((p) =>
+              p.email.toLowerCase() === match.email.toLowerCase() ? migrated : p
+            )
+            set({ registeredPlanners: updated })
+            saveAccounts(updated)
+            return true
+          }
+          return false
+        }
+
+        const candidate = await hashPassword(password, match.passwordSalt)
+        return safeEqual(candidate, match.passwordHash)
       },
 
       enterPreviewMode: (eventId: string, clientName: string, clientEmail: string) => {

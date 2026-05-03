@@ -35,6 +35,19 @@ const ALLOWED_MODELS = [
   'claude-opus-4-20250514', // kept for fallback, rarely hit
 ]
 
+// Allow-listed origins for browser requests. Add localhost in dev as needed.
+const ALLOWED_ORIGINS = [
+  'https://thalia-event-suite.pages.dev',
+  'http://localhost:3000',
+  'http://localhost:5173',
+]
+
+// Custom header the browser SDK sets so non-browser callers (curl, scripts)
+// can be filtered out cheaply. Combined with the Origin check this defends
+// against drive-by abuse without inconveniencing real users.
+const CLIENT_HEADER = 'x-thalia-client'
+const CLIENT_HEADER_VALUE = 'thalia-web'
+
 // ─── Handler ──────────────────────────────────────────────────────────────────
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   // ── 1. Check server-side key is configured ──────────────────────────────────
@@ -43,6 +56,19 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       { error: 'Service temporarily unavailable. Please try again later.' },
       503,
     )
+  }
+
+  // ── 1a. Origin + client-header gate ─────────────────────────────────────────
+  // Origin is set automatically by browsers and cannot be spoofed by JS in
+  // another site. Server-side abusers can forge it, so we pair it with a
+  // custom header check — together these block the casual abuse vectors
+  // (curl loops, exposed-endpoint scrapers, leaked-URL replay).
+  const origin = request.headers.get('Origin')
+  if (!origin || !ALLOWED_ORIGINS.includes(origin)) {
+    return json({ error: 'Forbidden.' }, 403)
+  }
+  if (request.headers.get(CLIENT_HEADER) !== CLIENT_HEADER_VALUE) {
+    return json({ error: 'Forbidden.' }, 403)
   }
 
   // ── 2. Rate limiting (per IP, per hour) ─────────────────────────────────────

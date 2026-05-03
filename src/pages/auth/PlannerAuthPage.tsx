@@ -8,7 +8,7 @@ type Tab = 'signin' | 'signup'
 
 export function PlannerAuthPage() {
   const navigate = useNavigate()
-  const { registeredPlanners, login, registerPlanner } = useStore()
+  const { registeredPlanners, login, registerPlanner, verifyPlannerPassword } = useStore()
 
   // Always open on sign-in — users with no account can switch to Create account
   const [tab, setTab]           = useState<Tab>('signin')
@@ -22,29 +22,32 @@ export function PlannerAuthPage() {
 
   const switchTab = (t: Tab) => { setTab(t); setError('') }
 
-  const handleSignIn = () => {
+  const handleSignIn = async () => {
     setError('')
     if (!email.trim())    { setError('Please enter your email.'); return }
     if (!password)        { setError('Please enter your password.'); return }
 
-    const match = registeredPlanners.find(
-      (p) => p.email.toLowerCase() === email.trim().toLowerCase()
-    )
-    if (!match)                    { setError('No account found with that email.'); return }
-    if (match.password !== password) { setError('Incorrect password.'); return }
+    const trimmedEmail = email.trim().toLowerCase()
+    const match = registeredPlanners.find((p) => p.email.toLowerCase() === trimmedEmail)
+    if (!match) { setError('No account found with that email.'); return }
+
+    setLoading(true)
+    const ok = await verifyPlannerPassword(trimmedEmail, password)
+    setLoading(false)
+    if (!ok) { setError('Incorrect password.'); return }
 
     login({ role: 'planner', displayName: match.name, email: match.email, isPlannerPreview: false })
     navigate('/planner', { replace: true })
   }
 
-  const handleSignUp = () => {
+  const handleSignUp = async () => {
     setError('')
     if (!name.trim())         { setError('Please enter your name.'); return }
     if (!email.trim())        { setError('Please enter your email.'); return }
     if (password.length < 6)  { setError('Password must be at least 6 characters.'); return }
 
     setLoading(true)
-    const result = registerPlanner({
+    const result = await registerPlanner({
       name: name.trim(),
       businessName: business.trim(),
       email: email.trim().toLowerCase(),
@@ -150,9 +153,10 @@ export function PlannerAuthPage() {
 
             <button
               onClick={handleSignIn}
-              className="w-full py-3.5 rounded-2xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-all shadow-sm mt-2"
+              disabled={loading}
+              className="w-full py-3.5 rounded-2xl bg-brand-500 hover:bg-brand-600 disabled:opacity-60 text-white font-semibold text-sm transition-all shadow-sm mt-2"
             >
-              Sign in
+              {loading ? 'Signing in…' : 'Sign in'}
             </button>
 
             <p className="text-center text-stone-600 text-xs pt-1">

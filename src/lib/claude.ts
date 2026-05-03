@@ -17,9 +17,15 @@ async function callAI(
   }
 
   // No user key — route through the server-side proxy (/api/ai).
+  // The X-Thalia-Client header is required by the proxy to filter casual
+  // abuse (curl loops, scrapers). Browsers auto-set Origin which the proxy
+  // also validates against an allow-list.
   const res = await fetch('/api/ai', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Thalia-Client': 'thalia-web',
+    },
     body: JSON.stringify(params),
   })
 

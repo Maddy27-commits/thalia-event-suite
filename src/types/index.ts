@@ -18,8 +18,10 @@ export interface RegisteredPlanner {
   name: string
   businessName: string
   email: string
-  /** Plain text for demo purposes */
-  password: string
+  /** PBKDF2-SHA-256 hex digest. Legacy accounts may still hold plaintext until next login. */
+  passwordHash: string
+  /** Hex salt paired with passwordHash. Empty string for un-migrated legacy accounts. */
+  passwordSalt: string
   createdAt: string
 }
 
@@ -297,7 +299,8 @@ export interface AppState {
   // Auth
   login: (session: AuthSession) => void
   logout: () => void
-  registerPlanner: (data: Omit<RegisteredPlanner, 'createdAt'>) => 'ok' | 'email_taken'
+  registerPlanner: (data: { name: string; businessName: string; email: string; password: string }) => Promise<'ok' | 'email_taken'>
+  verifyPlannerPassword: (email: string, password: string) => Promise<boolean>
   enterPreviewMode: (eventId: string, clientName: string, clientEmail: string) => void
   exitPreviewMode: () => void
 

@@ -52,51 +52,57 @@ export function PlannerDashboard() {
   const totalBudget      = events.reduce((sum, e) => sum + e.budget, 0)
   const pendingApprovals = events.reduce((sum, e) => sum + e.concepts.filter(c => c.status === 'pending').length, 0)
 
-  // Each stat card has its own colour identity
+  // Each summary card has its own colour identity, a value, a headline label,
+  // a one-line context blurb, and a route — so the card is informative AND
+  // navigable, not just a passive number.
   const stats = [
     {
       label: 'Active Events',
+      sub:   upcomingEvents.length === 0 ? 'No upcoming events yet' : 'In planning right now',
       value: String(upcomingEvents.length),
       icon: CalendarDays,
+      to: '/planner/events',
       cardBg:    'bg-gradient-to-br from-brand-50 to-brand-100/70',
       ring:      'ring-brand-200/50',
       numColor:  'text-brand-800',
       iconBg:    'bg-brand-100',
       iconColor: 'text-brand-600',
-      eyebrow:   'text-brand-500',
     },
     {
       label: 'Portfolio Budget',
+      sub:   'Across all your events',
       value: formatCurrency(totalBudget),
       icon: TrendingUp,
+      to: '/planner/events',
       cardBg:    'bg-gradient-to-br from-sage-50 to-sage-100/70',
       ring:      'ring-sage-200/50',
       numColor:  'text-sage-800',
       iconBg:    'bg-sage-100',
       iconColor: 'text-sage-600',
-      eyebrow:   'text-sage-500',
     },
     {
       label: 'Vendor Network',
+      sub:   vendors.length === 0 ? 'Add your first vendor' : 'Florists, venues, caterers…',
       value: String(vendors.length),
       icon: Store,
+      to: '/planner/vendors',
       cardBg:    'bg-gradient-to-br from-plum-50 to-plum-100/70',
       ring:      'ring-plum-200/50',
       numColor:  'text-plum-800',
       iconBg:    'bg-plum-100',
       iconColor: 'text-plum-600',
-      eyebrow:   'text-plum-500',
     },
     {
       label: 'Pending Approvals',
+      sub:   pendingApprovals === 0 ? 'You’re all caught up' : 'Concepts awaiting client review',
       value: String(pendingApprovals),
       icon: AlertCircle,
+      to: '/planner/events',
       cardBg:    pendingApprovals > 0 ? 'bg-gradient-to-br from-rose-50 to-rose-100/70' : 'bg-gradient-to-br from-stone-50 to-stone-100/60',
       ring:      pendingApprovals > 0 ? 'ring-rose-200/50' : 'ring-stone-200/40',
       numColor:  pendingApprovals > 0 ? 'text-rose-700'   : 'text-stone-500',
       iconBg:    pendingApprovals > 0 ? 'bg-rose-100'     : 'bg-stone-100',
       iconColor: pendingApprovals > 0 ? 'text-rose-500'   : 'text-stone-400',
-      eyebrow:   pendingApprovals > 0 ? 'text-rose-400'   : 'text-stone-400',
     },
   ]
 
@@ -152,27 +158,29 @@ export function PlannerDashboard() {
         </div>
       </div>
 
-      {/* ── Stat cards — each with its own colour identity ── */}
+      {/* ── Summary cards — each is a clickable shortcut to its section ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {stats.map((stat, i) => (
-          <div
+          <button
             key={stat.label}
-            className={`stat-card ${stat.cardBg} ${stat.ring} animate-fade-in`}
+            onClick={() => navigate(stat.to)}
+            className={`stat-card text-left ${stat.cardBg} ${stat.ring} animate-fade-in hover:scale-[1.02] hover:shadow-md transition-all group`}
             style={{ animationDelay: `${i * 75}ms` }}
           >
-            {/* Icon top-right */}
+            {/* Icon + headline label */}
             <div className="flex items-start justify-between mb-3 sm:mb-4">
               <div className={`w-9 h-9 rounded-xl ${stat.iconBg} flex items-center justify-center`}>
                 <stat.icon size={16} className={stat.iconColor} />
               </div>
-              <span className={`eyebrow ${stat.eyebrow} hidden sm:block`}>stat</span>
+              <ArrowRight size={13} className="text-stone-300 group-hover:text-stone-500 group-hover:translate-x-0.5 transition-all" />
             </div>
             {/* Big display number */}
             <p className={`font-display text-3xl sm:text-4xl font-semibold leading-none ${stat.numColor}`}>
               {stat.value}
             </p>
-            <p className="text-xs text-stone-500 mt-2 font-medium leading-tight">{stat.label}</p>
-          </div>
+            <p className="text-sm font-semibold text-stone-700 mt-2 leading-tight">{stat.label}</p>
+            <p className="text-[11px] text-stone-400 mt-0.5 leading-snug">{stat.sub}</p>
+          </button>
         ))}
       </div>
 
@@ -336,6 +344,16 @@ export function PlannerDashboard() {
           </CardBody>
         </Card>
       </section>
+
+      {/* ── Footer note ── */}
+      <footer className="pt-6 mt-2 border-t border-stone-100 text-center animate-fade-in delay-500">
+        <p className="text-xs text-stone-400">
+          Crafted with care · Thalia keeps you and your clients in lockstep, from briefing to the big day.
+        </p>
+        <p className="text-[10px] text-stone-300 mt-1">
+          Tip: every event has a 6-digit access code your client uses to sign in — find it inside the event card.
+        </p>
+      </footer>
 
       {/* Reminder modal */}
       {reminderEvent && (

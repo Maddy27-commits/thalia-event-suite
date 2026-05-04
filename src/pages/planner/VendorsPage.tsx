@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Star, Phone, Mail, Trash2, Edit2, Search, Store } from 'lucide-react'
+import { Plus, Star, Phone, Mail, Trash2, Edit2, Search, Store, Globe } from 'lucide-react'
 import { useStore } from '../../store'
 import { Card, CardBody } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
@@ -7,7 +7,7 @@ import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
 import { Input, Textarea, Select } from '../../components/ui/Input'
 import { generateId } from '../../lib/utils'
-import type { Vendor, VendorCategory } from '../../types'
+import type { Vendor, VendorCategory, VendorRegion, VendorSpecialty } from '../../types'
 
 const CATEGORIES: { value: VendorCategory; label: string }[] = [
   { value: 'venue', label: 'Venue' },
@@ -20,6 +20,28 @@ const CATEGORIES: { value: VendorCategory; label: string }[] = [
   { value: 'transportation', label: 'Transportation' },
   { value: 'lighting', label: 'Lighting' },
   { value: 'other', label: 'Other' },
+]
+
+const REGIONS: { value: VendorRegion; label: string }[] = [
+  { value: 'North America',      label: 'North America'     },
+  { value: 'UK & Ireland',       label: 'UK & Ireland'      },
+  { value: 'Europe',             label: 'Europe'            },
+  { value: 'India & South Asia', label: 'India & South Asia'},
+  { value: 'Middle East',        label: 'Middle East'       },
+  { value: 'Asia Pacific',       label: 'Asia Pacific'      },
+  { value: 'Australia & NZ',     label: 'Australia & NZ'    },
+  { value: 'Other',              label: 'Other'             },
+]
+
+const SPECIALTIES: { value: VendorSpecialty; label: string }[] = [
+  { value: 'wedding',     label: 'Wedding'     },
+  { value: 'corporate',   label: 'Corporate'   },
+  { value: 'birthday',    label: 'Birthday'    },
+  { value: 'anniversary', label: 'Anniversary' },
+  { value: 'gala',        label: 'Gala'        },
+  { value: 'conference',  label: 'Conference'  },
+  { value: 'graduation',  label: 'Graduation'  },
+  { value: 'general',     label: 'General'     },
 ]
 
 const categoryColors: Record<VendorCategory, string> = {
@@ -38,6 +60,7 @@ const categoryColors: Record<VendorCategory, string> = {
 const emptyForm = {
   name: '', category: 'florals' as VendorCategory, contact: '', email: '',
   phone: '', priceRange: '', rating: '5', notes: '', tags: '',
+  region: 'North America' as VendorRegion, specialty: 'wedding' as VendorSpecialty,
 }
 
 export function VendorsPage() {
@@ -47,13 +70,20 @@ export function VendorsPage() {
   const [form, setForm] = useState({ ...emptyForm })
   const [search, setSearch] = useState('')
   const [filterCat, setFilterCat] = useState<string>('all')
+  const [filterRegion, setFilterRegion] = useState<string>('all')
+  const [filterSpecialty, setFilterSpecialty] = useState<string>('all')
 
   const set = (k: keyof typeof emptyForm, v: string) => setForm((f) => ({ ...f, [k]: v }))
 
   const openCreate = () => { setForm({ ...emptyForm }); setEditingId(null); setOpen(true) }
   const openEdit = (v: Vendor) => {
-    setForm({ name: v.name, category: v.category, contact: v.contact, email: v.email,
-      phone: v.phone, priceRange: v.priceRange, rating: String(v.rating), notes: v.notes, tags: v.tags.join(', ') })
+    setForm({
+      name: v.name, category: v.category, contact: v.contact, email: v.email,
+      phone: v.phone, priceRange: v.priceRange, rating: String(v.rating), notes: v.notes,
+      tags: v.tags.join(', '),
+      region: v.region ?? 'North America',
+      specialty: v.specialties?.[0] ?? 'wedding',
+    })
     setEditingId(v.id)
     setOpen(true)
   }
@@ -62,7 +92,10 @@ export function VendorsPage() {
     const data = {
       name: form.name, category: form.category, contact: form.contact, email: form.email,
       phone: form.phone, priceRange: form.priceRange, rating: parseInt(form.rating) || 5,
-      notes: form.notes, tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
+      notes: form.notes,
+      tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
+      region: form.region,
+      specialties: [form.specialty],
     }
     if (editingId) {
       updateVendor(editingId, data)
@@ -74,9 +107,17 @@ export function VendorsPage() {
 
   const filtered = vendors.filter((v) => {
     const q = search.toLowerCase()
-    const matchesSearch = !q || v.name.toLowerCase().includes(q) || v.category.includes(q) || v.contact.toLowerCase().includes(q)
-    const matchesCat = filterCat === 'all' || v.category === filterCat
-    return matchesSearch && matchesCat
+    const matchesSearch =
+      !q ||
+      v.name.toLowerCase().includes(q) ||
+      v.category.includes(q) ||
+      v.contact.toLowerCase().includes(q) ||
+      (v.region ?? '').toLowerCase().includes(q) ||
+      v.tags.some((t) => t.toLowerCase().includes(q))
+    const matchesCat       = filterCat === 'all' || v.category === filterCat
+    const matchesRegion    = filterRegion === 'all' || v.region === filterRegion
+    const matchesSpecialty = filterSpecialty === 'all' || (v.specialties ?? []).includes(filterSpecialty as VendorSpecialty)
+    return matchesSearch && matchesCat && matchesRegion && matchesSpecialty
   })
 
   return (
@@ -92,17 +133,23 @@ export function VendorsPage() {
         </Button>
       </div>
 
-      {/* Filters */}
+      {/* Search */}
       <div className="flex items-center gap-3 flex-wrap">
-        <div className="relative flex-1 max-w-xs">
+        <div className="relative flex-1 max-w-md">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
           <input
-            placeholder="Search vendors..."
+            placeholder="Search by name, contact, region, or tag…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-9 pr-3 py-2 text-sm border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
           />
         </div>
+        <p className="text-xs text-stone-400">{filtered.length} match{filtered.length !== 1 ? 'es' : ''}</p>
+      </div>
+
+      {/* Category filter pills */}
+      <div className="space-y-2">
+        <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Category</p>
         <div className="flex gap-1.5 flex-wrap">
           <button
             onClick={() => setFilterCat('all')}
@@ -122,6 +169,50 @@ export function VendorsPage() {
         </div>
       </div>
 
+      {/* Region filter pills */}
+      <div className="space-y-2">
+        <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Region</p>
+        <div className="flex gap-1.5 flex-wrap">
+          <button
+            onClick={() => setFilterRegion('all')}
+            className={`text-xs px-3 py-1.5 rounded-full border transition-all ${filterRegion === 'all' ? 'bg-sage-600 text-white border-sage-600' : 'border-stone-200 text-stone-500 hover:border-sage-300'}`}
+          >
+            All regions
+          </button>
+          {REGIONS.map((r) => (
+            <button
+              key={r.value}
+              onClick={() => setFilterRegion(r.value)}
+              className={`text-xs px-3 py-1.5 rounded-full border transition-all flex items-center gap-1 ${filterRegion === r.value ? 'bg-sage-600 text-white border-sage-600' : 'border-stone-200 text-stone-500 hover:border-sage-300'}`}
+            >
+              <Globe size={10} /> {r.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Specialty filter pills */}
+      <div className="space-y-2">
+        <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Event speciality</p>
+        <div className="flex gap-1.5 flex-wrap">
+          <button
+            onClick={() => setFilterSpecialty('all')}
+            className={`text-xs px-3 py-1.5 rounded-full border transition-all ${filterSpecialty === 'all' ? 'bg-plum-600 text-white border-plum-600' : 'border-stone-200 text-stone-500 hover:border-plum-300'}`}
+          >
+            All event types
+          </button>
+          {SPECIALTIES.map((s) => (
+            <button
+              key={s.value}
+              onClick={() => setFilterSpecialty(s.value)}
+              className={`text-xs px-3 py-1.5 rounded-full border transition-all ${filterSpecialty === s.value ? 'bg-plum-600 text-white border-plum-600' : 'border-stone-200 text-stone-500 hover:border-plum-300'}`}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {filtered.map((vendor) => {
@@ -132,9 +223,16 @@ export function VendorsPage() {
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-stone-900 truncate">{vendor.name}</p>
-                  <span className={`inline-block mt-1 text-xs px-2 py-0.5 rounded-full font-medium ${categoryColors[vendor.category]}`}>
-                    {vendor.category}
-                  </span>
+                  <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${categoryColors[vendor.category]}`}>
+                      {vendor.category}
+                    </span>
+                    {vendor.region && (
+                      <span className="text-[10px] inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-sage-50 text-sage-700 font-medium">
+                        <Globe size={9} /> {vendor.region}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button onClick={() => openEdit(vendor)} className="p-1.5 rounded hover:bg-stone-100 text-stone-400">
@@ -160,8 +258,18 @@ export function VendorsPage() {
                 <p className="text-brand-600 font-medium">{vendor.priceRange}</p>
               </div>
 
-              {vendor.tags.length > 0 && (
+              {(vendor.specialties && vendor.specialties.length > 0) && (
                 <div className="flex flex-wrap gap-1 mt-3">
+                  {vendor.specialties.map((sp) => (
+                    <span key={sp} className="text-[10px] bg-plum-50 text-plum-700 ring-1 ring-plum-100 px-2 py-0.5 rounded-full font-medium capitalize">
+                      {sp}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {vendor.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2">
                   {vendor.tags.map((tag) => (
                     <span key={tag} className="text-[10px] bg-stone-50 border border-stone-100 text-stone-500 px-2 py-0.5 rounded-full">
                       {tag}
@@ -208,6 +316,8 @@ export function VendorsPage() {
             <Input label="Vendor Name" value={form.name} onChange={(e) => set('name', e.target.value)} className="col-span-2" />
             <Select label="Category" value={form.category} onChange={(e) => set('category', e.target.value as VendorCategory)} options={CATEGORIES} />
             <Input label="Rating (1–5)" type="number" min="1" max="5" value={form.rating} onChange={(e) => set('rating', e.target.value)} />
+            <Select label="Region" value={form.region} onChange={(e) => set('region', e.target.value as VendorRegion)} options={REGIONS} />
+            <Select label="Event speciality" value={form.specialty} onChange={(e) => set('specialty', e.target.value as VendorSpecialty)} options={SPECIALTIES} />
             <Input label="Contact Name" value={form.contact} onChange={(e) => set('contact', e.target.value)} />
             <Input label="Email" type="email" value={form.email} onChange={(e) => set('email', e.target.value)} />
             <Input label="Phone" value={form.phone} onChange={(e) => set('phone', e.target.value)} />

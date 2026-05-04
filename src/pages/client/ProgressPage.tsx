@@ -169,8 +169,9 @@ export function ProgressPage() {
           <div>
             <p className="eyebrow text-stone-400">Breakdown</p>
             <h2 className="font-display text-xl sm:text-2xl font-semibold text-stone-900 leading-tight">
-              Ceremonies & Elements
+              Your Event, Stage by Stage
             </h2>
+            <p className="text-xs text-stone-400 mt-1">Each stage covers a part of your day; we track every detail underneath.</p>
           </div>
 
           {event.ceremonies.map((ceremony) => {

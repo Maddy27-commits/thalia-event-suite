@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react'
 import {
   X, Check, MessageSquare, Mail, StickyNote, Sparkles,
   ThumbsUp, ThumbsDown, AlertTriangle, Star, Trash2, Plus, Send, Loader2,
-  ChevronRight, CheckCircle2, Calendar,
+  ChevronRight, CheckCircle2, Calendar, Wand2, Lightbulb,
 } from 'lucide-react'
 import type {
   Event, EventCeremony, EventSubCategory, SubCategoryTask,
@@ -11,7 +11,7 @@ import type {
 import { TASK_PHASES } from '../../types'
 import { useStore } from '../../store'
 import { generateId, formatDate, daysUntil, cn } from '../../lib/utils'
-import { extractTaskInsight } from '../../lib/claude'
+import { extractTaskInsight, suggestDiscussionStarters, suggestTaskOptions } from '../../lib/claude'
 
 interface TaskDrawerProps {
   event: Event
@@ -83,6 +83,12 @@ export function TaskDrawer({ event, ceremony, sub, task, onClose }: TaskDrawerPr
   // ── Inline-editable task due date ──
   const [editingDate, setEditingDate] = useState(false)
   const [dateDraft, setDateDraft] = useState(task.dueDate)
+
+  // ── AI assist state ──
+  const [starters, setStarters] = useState<string[]>([])
+  const [loadingStarters, setLoadingStarters] = useState(false)
+  const [generatingOptions, setGeneratingOptions] = useState(false)
+  const [optionsError, setOptionsError] = useState('')
 
   useEffect(() => { setActivePhase(task.currentPhase) }, [task.currentPhase])
   useEffect(() => { setDateDraft(task.dueDate) }, [task.dueDate])
@@ -194,6 +200,67 @@ export function TaskDrawer({ event, ceremony, sub, task, onClose }: TaskDrawerPr
       updateSubCategoryTask(event.id, ceremony.id, sub.id, task.id, { dueDate: dateDraft })
     }
     setEditingDate(false)
+  }
+
+  // ── AI: suggest 3 phase-aware discussion starters ──
+  const handleSuggestStarters = async () => {
+    setLoadingStarters(true)
+    try {
+      const list = await suggestDiscussionStarters(
+        {
+          phase: activePhase,
+          taskLabel: task.label,
+          eventType: event.type,
+          ceremonyName: ceremony.name,
+          clientName: event.clientName,
+          recentMessages: task.messages.slice(-6).map((m) => ({
+            author: m.author === 'planner' ? 'You' : (m.authorName ?? m.author),
+            content: m.content,
+          })),
+        },
+        '',
+      )
+      setStarters(list)
+    } finally {
+      setLoadingStarters(false)
+    }
+  }
+
+  // ── AI: generate option suggestions for the Recommendations phase ──
+  const handleGenerateOptions = async () => {
+    setOptionsError('')
+    setGeneratingOptions(true)
+    try {
+      const suggestions = await suggestTaskOptions(
+        {
+          taskLabel: task.label,
+          eventType: event.type,
+          ceremonyName: ceremony.name,
+          budget: event.budget,
+          preferences: aggregateInsight.preferences,
+          concerns:    aggregateInsight.concerns,
+          existingTitles: task.options.map((o) => o.title),
+        },
+        '',
+      )
+      suggestions.forEach((s) => {
+        const opt: TaskOption = {
+          id: generateId(),
+          title: s.title,
+          description: s.description,
+          estimatedCost: s.estimatedCost,
+          pros: s.pros,
+          cons: s.cons,
+          status: 'proposed',
+          createdAt: new Date().toISOString(),
+        }
+        addTaskOption(event.id, ceremony.id, sub.id, task.id, opt)
+      })
+    } catch (err) {
+      setOptionsError((err as Error).message ?? 'Could not generate options. Please try again.')
+    } finally {
+      setGeneratingOptions(false)
+    }
   }
 
   const days = daysUntil(task.dueDate)
@@ -323,6 +390,8 @@ export function TaskDrawer({ event, ceremony, sub, task, onClose }: TaskDrawerPr
 
         {/* ── Body (scrollable) ── */}
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+          {/* Phase guidance — different content per phase */}
+          <PhaseIntroCard phase={activePhase} />
           {/* AI insights summary (if any) */}
           {(aggregateInsight.preferences.length || aggregateInsight.concerns.length || aggregateInsight.decisions.length) > 0 && (
             <div className="rounded-2xl bg-gradient-to-br from-violet-50 to-fuchsia-50 ring-1 ring-violet-100 p-4">
@@ -379,19 +448,39 @@ export function TaskDrawer({ event, ceremony, sub, task, onClose }: TaskDrawerPr
           )}
 
           {/* ── Options / Recommendations ── */}
-          <section>
+          <section className={cn(
+            'rounded-2xl transition-all',
+            activePhase === 'recommendations' && 'ring-2 ring-violet-200 bg-violet-50/30 -mx-2 px-2 py-3',
+          )}>
             <div className="flex items-center justify-between mb-3">
               <div>
                 <h3 className="text-sm font-bold text-stone-900">Options & Recommendations</h3>
                 <p className="text-[11px] text-stone-400">Vendors, dishes, mood-boards — anything you're presenting to the client.</p>
               </div>
-              <button
-                onClick={() => setShowAddOption(v => !v)}
-                className="flex items-center gap-1 text-xs font-semibold text-brand-600 hover:text-brand-700 px-2 py-1 rounded-lg hover:bg-brand-50"
-              >
-                <Plus size={12} /> Add option
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={handleGenerateOptions}
+                  disabled={generatingOptions}
+                  className="flex items-center gap-1 text-xs font-semibold text-violet-600 hover:text-violet-700 bg-violet-50 hover:bg-violet-100 ring-1 ring-violet-200 px-2.5 py-1 rounded-lg disabled:opacity-50 transition-all"
+                  title="Use AI to draft option ideas based on this event"
+                >
+                  {generatingOptions ? <Loader2 size={12} className="animate-spin" /> : <Wand2 size={12} />}
+                  AI generate
+                </button>
+                <button
+                  onClick={() => setShowAddOption(v => !v)}
+                  className="flex items-center gap-1 text-xs font-semibold text-brand-600 hover:text-brand-700 px-2 py-1 rounded-lg hover:bg-brand-50"
+                >
+                  <Plus size={12} /> Add option
+                </button>
+              </div>
             </div>
+
+            {optionsError && (
+              <div className="mb-2 text-[11px] text-red-600 bg-red-50 ring-1 ring-red-200 rounded-lg px-3 py-1.5">
+                {optionsError}
+              </div>
+            )}
 
             {showAddOption && (
               <div className="bg-brand-50/40 ring-1 ring-brand-100 rounded-2xl p-3 mb-3 space-y-2">
@@ -484,6 +573,44 @@ export function TaskDrawer({ event, ceremony, sub, task, onClose }: TaskDrawerPr
 
         {/* ── Compose footer ── */}
         <div className="border-t border-stone-100 bg-white shrink-0">
+          {/* AI starter prompts row */}
+          <div className="flex items-start gap-2 px-4 pt-3">
+            <button
+              onClick={handleSuggestStarters}
+              disabled={loadingStarters}
+              className="flex items-center gap-1 text-[11px] font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 ring-1 ring-violet-200 px-2 py-1 rounded-full shrink-0 disabled:opacity-50 transition-all"
+              title="Get 3 phase-aware message ideas"
+            >
+              {loadingStarters ? <Loader2 size={11} className="animate-spin" /> : <Lightbulb size={11} />}
+              {starters.length > 0 ? 'Regenerate ideas' : 'Suggest starters'}
+            </button>
+            {starters.length > 0 ? (
+              <div className="flex gap-1.5 flex-wrap min-w-0">
+                {starters.map((s, i) => (
+                  <button
+                    key={i}
+                    onClick={() => { setDraft(s); setStarters([]) }}
+                    className="text-[11px] text-stone-700 bg-stone-50 hover:bg-violet-50 hover:text-violet-700 ring-1 ring-stone-200 hover:ring-violet-300 px-2 py-1 rounded-lg text-left max-w-[260px] truncate transition-all"
+                    title={s}
+                  >
+                    {s}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setStarters([])}
+                  className="text-[11px] text-stone-400 hover:text-stone-600 px-1.5"
+                  title="Dismiss suggestions"
+                >
+                  <X size={11} />
+                </button>
+              </div>
+            ) : (
+              <p className="text-[11px] text-stone-400 italic self-center">
+                Stuck on what to write? Get AI-suggested message ideas for this phase.
+              </p>
+            )}
+          </div>
+
           {/* Mode + sender row */}
           <div className="flex items-center gap-2 px-4 pt-3 pb-1">
             {/* Chat / Note tabs */}
@@ -584,6 +711,59 @@ export function TaskDrawer({ event, ceremony, sub, task, onClose }: TaskDrawerPr
 }
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
+
+const PHASE_INTRO: Record<TaskPhase, { title: string; body: string; emoji: string; gradient: string; ring: string }> = {
+  briefing: {
+    title:    'Capture the brief',
+    body:     'Get the client talking about what they want — and what they don\'t. Use Suggest starters below if you need an opener.',
+    emoji:    '🎤',
+    gradient: 'from-amber-50 to-orange-50',
+    ring:     'ring-amber-200',
+  },
+  recommendations: {
+    title:    'Build the shortlist',
+    body:     'Add the options you want to present. Use AI generate to draft 4 ideas based on the brief, then refine and reject as needed.',
+    emoji:    '✨',
+    gradient: 'from-violet-50 to-fuchsia-50',
+    ring:     'ring-violet-200',
+  },
+  'client-review': {
+    title:    'Client is reviewing',
+    body:     'Watch for incoming messages. Mark options Selected / Rejected as the client reacts so the trail is clean.',
+    emoji:    '👀',
+    gradient: 'from-blue-50 to-cyan-50',
+    ring:     'ring-blue-200',
+  },
+  revisions: {
+    title:    'Refine and re-present',
+    body:     'Update options based on feedback. The Discussion thread is your record — keep notes private with the Note tab.',
+    emoji:    '✏️',
+    gradient: 'from-rose-50 to-pink-50',
+    ring:     'ring-rose-200',
+  },
+  final: {
+    title:    'Locked in',
+    body:     'Selected option is the final answer. Confirm with the vendor, mark the task done, and move on.',
+    emoji:    '🎯',
+    gradient: 'from-emerald-50 to-sage-50',
+    ring:     'ring-emerald-200',
+  },
+}
+
+function PhaseIntroCard({ phase }: { phase: TaskPhase }) {
+  const intro = PHASE_INTRO[phase]
+  return (
+    <div className={cn('rounded-2xl bg-gradient-to-br p-4 ring-1', intro.gradient, intro.ring)}>
+      <div className="flex items-start gap-3">
+        <span className="text-2xl shrink-0">{intro.emoji}</span>
+        <div className="min-w-0">
+          <p className="text-sm font-bold text-stone-900">{intro.title}</p>
+          <p className="text-xs text-stone-600 mt-0.5 leading-relaxed">{intro.body}</p>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function MessageBubble({ message, onDelete }: { message: TaskMessage; onDelete: () => void }) {
   const ch = CHANNEL_META[message.channel] ?? CHANNEL_META['in-app']

@@ -1,7 +1,11 @@
 import Anthropic from '@anthropic-ai/sdk'
 import type { ConceptGeneratorInput, EventConcept, TaskInsight } from '../types'
 import { getImagesForConcept } from './images'
-import { parseAIResponse, conceptArraySchema, taskInsightSchema } from './aiParse'
+import {
+  parseAIResponse, conceptArraySchema, taskInsightSchema,
+  starterPromptsSchema, optionSuggestionsSchema,
+  type ParsedOptionSuggestion,
+} from './aiParse'
 
 // ─── Unified AI caller ────────────────────────────────────────────────────────
 // Priority: user-supplied key (direct to Anthropic) → server proxy → error.
@@ -235,4 +239,156 @@ Rules:
     console.warn('[extractTaskInsight] AI extraction failed, falling back to local heuristics:', err)
     return localExtractInsight(content)
   }
+}
+
+// ─── Discussion starters ──────────────────────────────────────────────────────
+//
+// Used by the in-task chat to nudge the planner with 3 phase-appropriate
+// conversation starters. Reads the existing thread (if any) so suggestions
+// build on prior context rather than restarting the discussion cold.
+
+export interface StarterContext {
+  phase: 'briefing' | 'recommendations' | 'client-review' | 'revisions' | 'final'
+  taskLabel: string
+  eventType: string
+  ceremonyName?: string
+  clientName?: string
+  /** Last few messages, oldest first, for context. Plain text. */
+  recentMessages: { author: string; content: string }[]
+}
+
+/** Local fallback starters when no AI key is available — phase-aware but generic. */
+function localStarters(ctx: StarterContext): string[] {
+  switch (ctx.phase) {
+    case 'briefing':
+      return [
+        `What's most important to you about ${ctx.taskLabel.toLowerCase()}?`,
+        `Are there any inspirations or examples you've saved we should look at first?`,
+        `Any non-negotiables — things you definitely want or definitely don't?`,
+      ]
+    case 'recommendations':
+      return [
+        `I've put together a few options for ${ctx.taskLabel.toLowerCase()} — want me to walk you through them?`,
+        `Should I prioritise budget, style, or availability when shortlisting?`,
+        `Any names or vendors you'd like me to consider — or avoid?`,
+      ]
+    case 'client-review':
+      return [
+        `Have you had a chance to look through the options I shared?`,
+        `Which one feels closest to your vision so far?`,
+        `Anything you'd tweak about your top choice?`,
+      ]
+    case 'revisions':
+      return [
+        `Based on your feedback, here's what I'm adjusting — does this sound right?`,
+        `Should I bring back a revised proposal, or are we close to deciding?`,
+        `Any additional concerns surfaced since we last spoke?`,
+      ]
+    case 'final':
+      return [
+        `Just confirming — we're locked in on this. Anything else you need from me?`,
+        `Want me to send a final summary email for your records?`,
+        `Excited to move forward! Anything else you'd like to discuss?`,
+      ]
+  }
+}
+
+/**
+ * Suggest 3 discussion starters tuned to the current task phase and recent
+ * conversation. Falls back to local templates if the AI call fails.
+ */
+export async function suggestDiscussionStarters(
+  ctx: StarterContext,
+  apiKey: string,
+): Promise<string[]> {
+  const recent = ctx.recentMessages.slice(-6).map((m) => `${m.author}: ${m.content}`).join('\n') || '(no messages yet)'
+
+  const prompt = `You are an experienced event planner helping a colleague draft messages to their client.
+
+Context:
+- Event type: ${ctx.eventType}
+- Ceremony / phase: ${ctx.ceremonyName ?? 'n/a'}
+- Task being decided: ${ctx.taskLabel}
+- Client name: ${ctx.clientName ?? 'the client'}
+- Current planning phase: ${ctx.phase}
+
+Recent messages (oldest first):
+${recent}
+
+Suggest exactly 3 short message drafts the planner could send next, written in the planner's voice (warm, professional, concise). Each one should be different in approach (e.g. one open question, one specific question, one update/proposal). Tailor them to the current planning phase.
+
+Return ONLY a JSON array of 3 strings — no markdown, no commentary. Each string is the message body, ≤25 words.`
+
+  try {
+    const response = await callAI(apiKey, {
+      model: 'claude-haiku-4-5',
+      max_tokens: 400,
+      messages: [{ role: 'user', content: prompt }],
+    })
+    const text = response.content[0].type === 'text' ? response.content[0].text : ''
+    const parsed = parseAIResponse(text, starterPromptsSchema)
+    return parsed.slice(0, 3)
+  } catch (err) {
+    console.warn('[suggestDiscussionStarters] AI failed, using local fallback:', err)
+    return localStarters(ctx)
+  }
+}
+
+// ─── Option / recommendation suggestions ──────────────────────────────────────
+//
+// Used inside the Recommendations phase of a task. Generates a small set of
+// concrete option ideas (vendors / approaches / packages) the planner can
+// then keep, edit, or reject. Pulls existing options + any captured client
+// preferences into the prompt so suggestions are relevant.
+
+export interface OptionSuggestionContext {
+  taskLabel: string
+  eventType: string
+  ceremonyName?: string
+  budget?: number
+  preferences?: string[]
+  concerns?: string[]
+  /** Existing option titles so AI doesn't suggest duplicates. */
+  existingTitles?: string[]
+}
+
+/**
+ * Generate 3–5 concrete option ideas for the Recommendations phase.
+ * Throws on failure (no useful local fallback for "specific vendor names").
+ */
+export async function suggestTaskOptions(
+  ctx: OptionSuggestionContext,
+  apiKey: string,
+): Promise<ParsedOptionSuggestion[]> {
+  const prompt = `You are an experienced event planner shortlisting concrete options for a task.
+
+Context:
+- Event type: ${ctx.eventType}
+- Ceremony / phase: ${ctx.ceremonyName ?? 'n/a'}
+- Task: ${ctx.taskLabel}
+${ctx.budget ? `- Total event budget: $${ctx.budget.toLocaleString()}` : ''}
+${ctx.preferences?.length ? `- Client preferences: ${ctx.preferences.join('; ')}` : ''}
+${ctx.concerns?.length ? `- Client concerns: ${ctx.concerns.join('; ')}` : ''}
+${ctx.existingTitles?.length ? `- Already shortlisted (don't repeat): ${ctx.existingTitles.join(', ')}` : ''}
+
+Suggest 4 distinct option ideas the planner could present to the client. Each should be a specific concept (e.g. a venue type, vendor archetype, package, or approach), with realistic estimated cost.
+
+Return ONLY a JSON array — no markdown, no commentary. Each item:
+{
+  "title":         "Specific name or concept (3–6 words)",
+  "description":   "1 sentence on why this option fits this client",
+  "estimatedCost": "$X,XXX–$Y,YYY or 'Included' or similar",
+  "pros":          ["3–5 word strength", "another"],
+  "cons":          ["3–5 word trade-off", "another"]
+}
+
+Make options visually/functionally distinct from each other. 4 items.`
+
+  const response = await callAI(apiKey, {
+    model: 'claude-sonnet-4-5',
+    max_tokens: 1500,
+    messages: [{ role: 'user', content: prompt }],
+  })
+  const text = response.content[0].type === 'text' ? response.content[0].text : ''
+  return parseAIResponse(text, optionSuggestionsSchema)
 }

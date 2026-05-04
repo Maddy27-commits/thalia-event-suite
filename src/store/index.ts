@@ -448,30 +448,234 @@ export function getDefaultCeremonies(type: EventType, eventDate: string): EventC
 
 // ─── Sample data ───────────────────────────────────────────────────────────────
 
+// Curated sample directory — real-feeling spread across categories, regions
+// and event specialities so the planner's first impression of "Vendors" feels
+// useful, not empty. All contacts are placeholder values.
 const SAMPLE_VENDORS: Vendor[] = [
+  // ── North America ────────────────────────────────────────────────────────
   {
     id: 'v1', name: 'Bloom & Petal Florals', category: 'florals',
     contact: 'Sarah Chen', email: 'sarah@bloomandpetal.com', phone: '+1 555-0101',
     priceRange: '$800–$3,000', rating: 5, tags: ['luxury', 'garden', 'romantic'],
-    notes: 'Specializes in garden-style arrangements. Books 6 months out.', createdAt: new Date().toISOString(),
+    region: 'North America', specialties: ['wedding', 'anniversary'],
+    notes: 'NYC-based. Specializes in garden-style arrangements. Books 6 months out.', createdAt: new Date().toISOString(),
   },
   {
     id: 'v2', name: 'Golden Frame Photography', category: 'photography',
     contact: 'Marcus Lee', email: 'marcus@goldenframe.com', phone: '+1 555-0202',
     priceRange: '$2,500–$6,000', rating: 5, tags: ['editorial', 'candid', 'luxury'],
-    notes: 'Award-winning. Candid style. Requires 50% deposit on booking.', createdAt: new Date().toISOString(),
+    region: 'North America', specialties: ['wedding', 'gala', 'corporate'],
+    notes: 'Award-winning Brooklyn studio. Candid style. Requires 50% deposit.', createdAt: new Date().toISOString(),
   },
   {
     id: 'v3', name: 'Saveur Catering Co.', category: 'catering',
     contact: 'Elena Russo', email: 'elena@saveur.com', phone: '+1 555-0303',
     priceRange: '$85–$150 per head', rating: 4, tags: ['farm-to-table', 'vegan-friendly', 'plated'],
-    notes: 'Excellent vegan options. Provides servers and bartenders.', createdAt: new Date().toISOString(),
+    region: 'North America', specialties: ['wedding', 'corporate', 'gala'],
+    notes: 'San Francisco. Excellent vegan options. Provides servers and bartenders.', createdAt: new Date().toISOString(),
   },
   {
     id: 'v4', name: 'Luminary Lighting & Decor', category: 'lighting',
     contact: 'James Park', email: 'james@luminecor.com', phone: '+1 555-0404',
     priceRange: '$1,200–$5,000', rating: 4, tags: ['fairy-lights', 'uplighting', 'marquee'],
-    notes: 'Great for outdoor and tented events. Setup crew included.', createdAt: new Date().toISOString(),
+    region: 'North America', specialties: ['wedding', 'gala', 'corporate'],
+    notes: 'Toronto + GTA. Great for outdoor and tented events. Setup crew included.', createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'v5', name: 'The Greenhouse Estate', category: 'venue',
+    contact: 'Olivia Tan', email: 'events@greenhouseestate.com', phone: '+1 555-0505',
+    priceRange: '$8,000–$22,000', rating: 5, tags: ['conservatory', 'glasshouse', 'natural-light'],
+    region: 'North America', specialties: ['wedding', 'corporate', 'gala'],
+    notes: 'LA area. 200-cap glasshouse. Stunning natural light, in-house catering optional.', createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'v6', name: 'Cinematic Story Films', category: 'videography',
+    contact: 'Diego Alvarez', email: 'diego@cinematicstory.com', phone: '+1 555-0606',
+    priceRange: '$3,500–$8,500', rating: 5, tags: ['drone', 'documentary', 'cinematic'],
+    region: 'North America', specialties: ['wedding', 'gala', 'graduation'],
+    notes: 'Chicago-based. 4K drone, two-shooter coverage. Same-day teaser available.', createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'v7', name: 'Velvet Sound DJs', category: 'music',
+    contact: 'Aaliyah Brooks', email: 'hello@velvetsound.com', phone: '+1 555-0707',
+    priceRange: '$1,200–$3,500', rating: 4, tags: ['dj', 'mc', 'open-format'],
+    region: 'North America', specialties: ['wedding', 'birthday', 'corporate'],
+    notes: 'Atlanta. Open-format DJ + bilingual MC. Brings own lighting rig.', createdAt: new Date().toISOString(),
+  },
+
+  // ── UK & Ireland ────────────────────────────────────────────────────────
+  {
+    id: 'v8', name: 'Marlowe & Vine Florists', category: 'florals',
+    contact: 'Edith Marlowe', email: 'edith@marloweandvine.co.uk', phone: '+44 20 7946 0011',
+    priceRange: '£1,200–£4,500', rating: 5, tags: ['english-garden', 'wildflower', 'sustainable'],
+    region: 'UK & Ireland', specialties: ['wedding', 'anniversary'],
+    notes: 'London + Cotswolds. Foam-free, locally sourced stems.', createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'v9', name: 'The Old Mill Estate', category: 'venue',
+    contact: 'Hugh Pemberton', email: 'enquiries@oldmillestate.co.uk', phone: '+44 1865 555-9090',
+    priceRange: '£12,000–£28,000', rating: 5, tags: ['historic', 'manor', 'gardens'],
+    region: 'UK & Ireland', specialties: ['wedding', 'gala'],
+    notes: 'Oxfordshire. 16th-century mill, on-site overnight rooms for 30.', createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'v10', name: 'Fennel & Fig Catering', category: 'catering',
+    contact: 'Priya Anand', email: 'priya@fennelandfig.co.uk', phone: '+44 161 555-1212',
+    priceRange: '£70–£140 per head', rating: 4, tags: ['seasonal', 'modern-british', 'halal-options'],
+    region: 'UK & Ireland', specialties: ['wedding', 'corporate', 'conference'],
+    notes: 'Manchester. Seasonal modern British menus, halal and kosher available.', createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'v11', name: 'Dublin Strings Quartet', category: 'music',
+    contact: 'Niamh O\'Sullivan', email: 'bookings@dublinstrings.ie', phone: '+353 1 555-3030',
+    priceRange: '€800–€2,200', rating: 5, tags: ['classical', 'ceremony', 'cocktail-hour'],
+    region: 'UK & Ireland', specialties: ['wedding', 'gala', 'anniversary'],
+    notes: 'Dublin. Classical + contemporary repertoire. Travels across UK & Ireland.', createdAt: new Date().toISOString(),
+  },
+
+  // ── Europe ──────────────────────────────────────────────────────────────
+  {
+    id: 'v12', name: 'Studio Lumière Paris', category: 'photography',
+    contact: 'Camille Rousseau', email: 'camille@studio-lumiere.fr', phone: '+33 1 55 55 04 04',
+    priceRange: '€3,000–€7,500', rating: 5, tags: ['fine-art', 'film', 'luxury'],
+    region: 'Europe', specialties: ['wedding', 'gala'],
+    notes: 'Paris. Fine-art film + digital. Available for destination weddings across Europe.', createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'v13', name: 'Villa Costiera', category: 'venue',
+    contact: 'Matteo Greco', email: 'eventi@villacostiera.it', phone: '+39 089 555-7070',
+    priceRange: '€18,000–€45,000', rating: 5, tags: ['cliffside', 'mediterranean', 'destination'],
+    region: 'Europe', specialties: ['wedding', 'anniversary', 'gala'],
+    notes: 'Amalfi Coast. 3-night minimum stay. Iconic destination property.', createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'v14', name: 'Berliner Klang Productions', category: 'music',
+    contact: 'Lukas Weber', email: 'lukas@berlinerklang.de', phone: '+49 30 555-8080',
+    priceRange: '€1,800–€5,500', rating: 4, tags: ['live-band', 'jazz', 'corporate'],
+    region: 'Europe', specialties: ['corporate', 'gala', 'conference'],
+    notes: 'Berlin. 4–9 piece live band. Strong jazz + funk repertoire.', createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'v15', name: 'Ámbar Floral Studio', category: 'florals',
+    contact: 'Sofía Méndez', email: 'sofia@ambarfloral.es', phone: '+34 91 555-9090',
+    priceRange: '€600–€2,800', rating: 4, tags: ['mediterranean', 'dried-florals', 'minimal'],
+    region: 'Europe', specialties: ['wedding', 'corporate', 'birthday'],
+    notes: 'Madrid + Barcelona. Modern Mediterranean palette, dried-floral specialist.', createdAt: new Date().toISOString(),
+  },
+
+  // ── India & South Asia ──────────────────────────────────────────────────
+  {
+    id: 'v16', name: 'Saffron Banquets', category: 'venue',
+    contact: 'Rohan Kapoor', email: 'events@saffronbanquets.in', phone: '+91 11 4555 1010',
+    priceRange: '₹4,00,000–₹12,00,000', rating: 5, tags: ['banquet', 'multi-cuisine', 'mandap'],
+    region: 'India & South Asia', specialties: ['wedding', 'birthday', 'anniversary'],
+    notes: 'Delhi NCR. Up to 800 guests, in-house mandap and stage decor packages.', createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'v17', name: 'Mehndi Stories Photography', category: 'photography',
+    contact: 'Aanya Iyer', email: 'aanya@mehndistories.in', phone: '+91 22 4555 2020',
+    priceRange: '₹1,80,000–₹6,00,000', rating: 5, tags: ['candid', 'pre-wedding', 'multi-day'],
+    region: 'India & South Asia', specialties: ['wedding', 'anniversary'],
+    notes: 'Mumbai. Specialises in 3–5 day Indian weddings. Two-team coverage standard.', createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'v18', name: 'Spice Route Catering', category: 'catering',
+    contact: 'Vikram Joshi', email: 'vikram@spiceroute.in', phone: '+91 80 4555 3030',
+    priceRange: '₹1,200–₹2,800 per head', rating: 4, tags: ['multi-regional', 'jain-options', 'live-counters'],
+    region: 'India & South Asia', specialties: ['wedding', 'corporate', 'birthday'],
+    notes: 'Bengaluru. North + South + Indo-Chinese. Jain and satvik menus available.', createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'v19', name: 'Roshani Lights & Mandap', category: 'lighting',
+    contact: 'Devika Rao', email: 'roshani@roshanilights.in', phone: '+91 40 4555 4040',
+    priceRange: '₹1,50,000–₹6,00,000', rating: 4, tags: ['mandap', 'led-walls', 'fairy-lights'],
+    region: 'India & South Asia', specialties: ['wedding', 'birthday', 'anniversary'],
+    notes: 'Hyderabad. Mandap design + LED walls + outdoor uplighting.', createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'v20', name: 'Karwaan Wedding Cars', category: 'transportation',
+    contact: 'Imran Sheikh', email: 'imran@karwaancars.in', phone: '+91 22 4555 5050',
+    priceRange: '₹15,000–₹80,000 per day', rating: 4, tags: ['vintage', 'luxury', 'baraat'],
+    region: 'India & South Asia', specialties: ['wedding', 'anniversary'],
+    notes: 'Mumbai + Pune. Vintage cars, luxury sedans, decorated baraat horse.', createdAt: new Date().toISOString(),
+  },
+
+  // ── Middle East ─────────────────────────────────────────────────────────
+  {
+    id: 'v21', name: 'Al Noor Events Hall', category: 'venue',
+    contact: 'Layla Al-Hamadi', email: 'events@alnoorhall.ae', phone: '+971 4 555 6060',
+    priceRange: 'AED 80,000–250,000', rating: 5, tags: ['ballroom', 'segregated-options', 'luxury'],
+    region: 'Middle East', specialties: ['wedding', 'gala', 'corporate'],
+    notes: 'Dubai. Ballroom with optional gender-segregated layouts. Catering in-house.', createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'v22', name: 'Cedar & Cardamom Catering', category: 'catering',
+    contact: 'Tarek Haddad', email: 'tarek@cedarcardamom.com', phone: '+961 1 555-7070',
+    priceRange: '$60–$140 per head', rating: 5, tags: ['levantine', 'mezze', 'halal'],
+    region: 'Middle East', specialties: ['wedding', 'corporate', 'gala'],
+    notes: 'Beirut. Modern Levantine, large mezze spreads, fully halal.', createdAt: new Date().toISOString(),
+  },
+
+  // ── Asia Pacific ────────────────────────────────────────────────────────
+  {
+    id: 'v23', name: 'Sakura Floral Atelier', category: 'florals',
+    contact: 'Hana Tanaka', email: 'hana@sakuraatelier.jp', phone: '+81 3 5555 8080',
+    priceRange: '¥150,000–¥600,000', rating: 5, tags: ['ikebana', 'minimalist', 'seasonal'],
+    region: 'Asia Pacific', specialties: ['wedding', 'corporate', 'gala'],
+    notes: 'Tokyo. Modern ikebana-influenced installations.', createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'v24', name: 'Marina Bay Convention Group', category: 'venue',
+    contact: 'Wei Lin', email: 'corp@marinabayconvention.sg', phone: '+65 6555-9090',
+    priceRange: 'SGD 18,000–60,000', rating: 5, tags: ['conference', 'av-equipped', 'corporate'],
+    region: 'Asia Pacific', specialties: ['conference', 'corporate', 'gala'],
+    notes: 'Singapore. Full AV, breakout rooms, in-house production team.', createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'v25', name: 'Manila Sound Co.', category: 'music',
+    contact: 'Joaquin Reyes', email: 'joaquin@manilasound.ph', phone: '+63 2 5555-1010',
+    priceRange: '₱60,000–₱250,000', rating: 4, tags: ['live-band', 'pop', 'wedding'],
+    region: 'Asia Pacific', specialties: ['wedding', 'birthday', 'corporate'],
+    notes: 'Manila. 5–8 piece live band. Bilingual repertoire (English + Tagalog).', createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'v26', name: 'Bangkok Bloom & Co.', category: 'florals',
+    contact: 'Niran Suksawat', email: 'niran@bangkokbloom.co.th', phone: '+66 2 555-2020',
+    priceRange: '฿30,000–฿180,000', rating: 4, tags: ['tropical', 'orchid', 'destination'],
+    region: 'Asia Pacific', specialties: ['wedding', 'anniversary', 'birthday'],
+    notes: 'Bangkok + Phuket. Tropical orchid specialist for destination weddings.', createdAt: new Date().toISOString(),
+  },
+
+  // ── Australia & NZ ──────────────────────────────────────────────────────
+  {
+    id: 'v27', name: 'Coastline Weddings & Co.', category: 'venue',
+    contact: 'Charlotte Walker', email: 'hello@coastline-weddings.com.au', phone: '+61 2 5555-3030',
+    priceRange: 'AUD 12,000–35,000', rating: 5, tags: ['beachfront', 'rooftop', 'modern'],
+    region: 'Australia & NZ', specialties: ['wedding', 'anniversary', 'birthday'],
+    notes: 'Sydney. Beachfront + rooftop options, panoramic harbour views.', createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'v28', name: 'Wellington Reels Films', category: 'videography',
+    contact: 'Te Aroha Ngata', email: 'kia.ora@wellingtonreels.co.nz', phone: '+64 4 555-4040',
+    priceRange: 'NZD 4,000–9,500', rating: 5, tags: ['documentary', 'nature', 'cinematic'],
+    region: 'Australia & NZ', specialties: ['wedding', 'graduation'],
+    notes: 'Wellington. Beautiful nature backdrops, documentary-style.', createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'v29', name: 'Outback Coach Hire', category: 'transportation',
+    contact: 'Riley Watson', email: 'riley@outbackcoach.com.au', phone: '+61 8 5555-5050',
+    priceRange: 'AUD 1,500–6,000', rating: 4, tags: ['shuttle', 'luxury-coach', 'guest-transport'],
+    region: 'Australia & NZ', specialties: ['wedding', 'corporate', 'conference'],
+    notes: 'Melbourne + Adelaide. Luxury coaches up to 56 seats.', createdAt: new Date().toISOString(),
+  },
+
+  // ── Cross-region / generic decor ────────────────────────────────────────
+  {
+    id: 'v30', name: 'Atelier Threadbare Decor', category: 'decor',
+    contact: 'Mira Okafor', email: 'mira@threadbaredecor.com', phone: '+1 555-6060',
+    priceRange: '$2,000–$12,000', rating: 5, tags: ['linens', 'tablescapes', 'rentals'],
+    region: 'North America', specialties: ['wedding', 'gala', 'anniversary'],
+    notes: 'Brooklyn. Heirloom-quality linen and tabletop rentals. Will ship within USA + Canada.', createdAt: new Date().toISOString(),
   },
 ]
 

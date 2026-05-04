@@ -99,5 +99,18 @@ export const taskInsightSchema = z.object({
   sentiment:   z.enum(['positive', 'neutral', 'negative']).default('neutral'),
 })
 
+/** Discussion starter prompts surfaced inside a task's chat composer. */
+export const starterPromptsSchema = z.array(z.string().min(1)).min(1).max(5)
+
+/** Option/recommendation suggestions surfaced inside the Recommendations phase. */
+export const optionSuggestionsSchema = z.array(z.object({
+  title:         z.string().min(1),
+  description:   z.string().default(''),
+  estimatedCost: z.string().default(''),
+  pros:          z.array(z.string()).default([]),
+  cons:          z.array(z.string()).default([]),
+})).min(1).max(6)
+
 export type ParsedConcept = z.infer<typeof conceptSchema>
 export type ParsedTaskInsight = z.infer<typeof taskInsightSchema>
+export type ParsedOptionSuggestion = z.infer<typeof optionSuggestionsSchema>[number]

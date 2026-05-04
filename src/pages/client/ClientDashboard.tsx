@@ -119,7 +119,7 @@ export function ClientDashboard() {
         </div>
       </div>
 
-      {/* ── Quick stats ── */}
+      {/* ── Quick links — clear labels + helper text ── */}
       <div className="grid grid-cols-3 gap-3">
         <Card
           hover
@@ -131,24 +131,26 @@ export function ClientDashboard() {
               <Sparkles size={16} className={pendingConcepts > 0 ? 'text-amber-500' : 'text-stone-300'} />
             </div>
             <p className="text-xl font-bold text-stone-900">{event.concepts.length}</p>
-            <p className="text-[10px] text-stone-400 mt-0.5">Concepts</p>
+            <p className="text-[11px] text-stone-500 mt-0.5 font-semibold">Design concepts</p>
+            <p className="text-[10px] text-stone-400 leading-snug">Tap to review</p>
             {pendingConcepts > 0 && (
               <Badge variant="warning" className="mt-1.5 text-[9px]">{pendingConcepts} new</Badge>
             )}
           </CardBody>
         </Card>
 
-        <Card>
+        <Card hover onClick={() => navigate('/client/concepts')}>
           <CardBody className="text-center py-4 px-3">
             <div className={`w-8 h-8 rounded-xl mx-auto mb-2 flex items-center justify-center ${approvedConcepts > 0 ? 'bg-sage-50' : 'bg-stone-50'}`}>
               <CheckCircle2 size={16} className={approvedConcepts > 0 ? 'text-sage-500' : 'text-stone-300'} />
             </div>
             <p className="text-xl font-bold text-stone-900">{approvedConcepts}</p>
-            <p className="text-[10px] text-stone-400 mt-0.5">Approved</p>
+            <p className="text-[11px] text-stone-500 mt-0.5 font-semibold">Approved</p>
+            <p className="text-[10px] text-stone-400 leading-snug">Locked-in choices</p>
           </CardBody>
         </Card>
 
-        <Card>
+        <Card hover onClick={() => navigate('/client/progress')}>
           <CardBody className="text-center py-4 px-3">
             <div className="w-8 h-8 rounded-xl mx-auto mb-2 flex items-center justify-center bg-brand-50">
               <CheckCircle2 size={16} className="text-brand-500" />
@@ -156,7 +158,8 @@ export function ClientDashboard() {
             <p className="text-xl font-bold text-stone-900">
               {event.milestones.filter((m) => m.completed).length}
             </p>
-            <p className="text-[10px] text-stone-400 mt-0.5">Milestones</p>
+            <p className="text-[11px] text-stone-500 mt-0.5 font-semibold">Milestones met</p>
+            <p className="text-[10px] text-stone-400 leading-snug">See full timeline</p>
           </CardBody>
         </Card>
       </div>
@@ -255,6 +258,16 @@ export function ClientDashboard() {
           </div>
         </CardBody>
       </Card>
+
+      {/* ── Footer note ── */}
+      <footer className="pt-6 mt-2 border-t border-stone-100 text-center">
+        <p className="text-xs text-stone-400">
+          Your planner curates everything you see here — review concepts, watch milestones tick by, message us anytime.
+        </p>
+        <p className="text-[10px] text-stone-300 mt-1">
+          Need help? Reach out to your planner directly through any task discussion.
+        </p>
+      </footer>
     </div>
   )
 }

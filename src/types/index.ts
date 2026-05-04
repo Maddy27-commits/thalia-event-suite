@@ -38,6 +38,28 @@ export type VendorCategory =
   | 'lighting'
   | 'other'
 
+/** Geographic region a vendor primarily serves. */
+export type VendorRegion =
+  | 'North America'
+  | 'Europe'
+  | 'UK & Ireland'
+  | 'India & South Asia'
+  | 'Middle East'
+  | 'Asia Pacific'
+  | 'Australia & NZ'
+  | 'Other'
+
+/** Type of event a vendor specialises in (used as a soft filter). */
+export type VendorSpecialty =
+  | 'wedding'
+  | 'corporate'
+  | 'birthday'
+  | 'anniversary'
+  | 'gala'
+  | 'conference'
+  | 'graduation'
+  | 'general'
+
 export interface Vendor {
   id: string
   name: string
@@ -49,6 +71,10 @@ export interface Vendor {
   rating: number
   notes: string
   tags: string[]
+  /** Optional — vendor's primary region of service. */
+  region?: VendorRegion
+  /** Optional — event types this vendor specialises in. */
+  specialties?: VendorSpecialty[]
   createdAt: string
 }
 

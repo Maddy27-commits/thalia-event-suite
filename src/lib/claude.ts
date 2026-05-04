@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import type { ConceptGeneratorInput, EventConcept, TaskInsight } from '../types'
 import { getImagesForConcept } from './images'
+import { parseAIResponse, conceptArraySchema, taskInsightSchema } from './aiParse'
 
 // ─── Unified AI caller ────────────────────────────────────────────────────────
 // Priority: user-supplied key (direct to Anthropic) → server proxy → error.
@@ -99,20 +100,9 @@ Rules:
   })
 
   const text = response.content[0].type === 'text' ? response.content[0].text : ''
-  const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-  const parsed = JSON.parse(cleaned) as Array<{
-    title: string
-    tagline: string
-    theme: string
-    colorPalette: string[]
-    mood: string
-    venueDescription: string
-    decorItems: Array<{ name: string; description: string; estimatedCost: string }>
-    cateringNotes: string
-    entertainmentNotes: string
-    estimatedBudget: string
-    styleKeywords?: string[]
-  }>
+  // Robust extraction + Zod validation — survives markdown fences, prose
+  // preamble, and shape drift (missing fields fall back to safe defaults).
+  const parsed = parseAIResponse(text, conceptArraySchema)
 
   parsed.forEach((raw, i) => {
     const styleKw = raw.styleKeywords ?? input.style
@@ -234,13 +224,12 @@ Rules:
       messages: [{ role: 'user', content: prompt }],
     })
     const text = response.content[0].type === 'text' ? response.content[0].text : ''
-    const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
-    const parsed = JSON.parse(cleaned)
+    const parsed = parseAIResponse(text, taskInsightSchema)
     return {
-      preferences: Array.isArray(parsed.preferences) ? parsed.preferences.slice(0, 8) : [],
-      concerns:    Array.isArray(parsed.concerns)    ? parsed.concerns.slice(0, 8)    : [],
-      decisions:   Array.isArray(parsed.decisions)   ? parsed.decisions.slice(0, 8)   : [],
-      sentiment:   parsed.sentiment === 'positive' || parsed.sentiment === 'negative' ? parsed.sentiment : 'neutral',
+      preferences: parsed.preferences.slice(0, 8),
+      concerns:    parsed.concerns.slice(0, 8),
+      decisions:   parsed.decisions.slice(0, 8),
+      sentiment:   parsed.sentiment,
     }
   } catch (err) {
     console.warn('[extractTaskInsight] AI extraction failed, falling back to local heuristics:', err)

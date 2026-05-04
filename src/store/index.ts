@@ -91,6 +91,15 @@ function dedupeByEmail(planners: RegisteredPlanner[]): RegisteredPlanner[] {
 // ─── Dedicated accounts store (version-independent) ────────────────────────────
 // Stored under a key that never changes, so accounts survive any future storage
 // version bumps. We also try to recover accounts from older versioned keys.
+//
+// DESIGN NOTE — fragmented persistence is intentional:
+// We deliberately split persistence into two keys instead of a single Zustand
+// `persist` partialize. The reason: if we bump the storage version (`v6 → v7`)
+// to invalidate cached events/vendors, we must NOT also wipe accounts —
+// accounts are user-owned credentials, not derived data. Keeping accounts in
+// their own version-independent key (`thalia-accounts`) is the cleanest way
+// to make those two retention policies independent. A unified persist with
+// migrations would also work but adds more risk than the dual-key split.
 const ACCOUNTS_KEY = 'thalia-accounts'
 
 function loadAccounts(): RegisteredPlanner[] {
@@ -174,9 +183,17 @@ function migrateTask(t: Partial<SubCategoryTask> & Pick<SubCategoryTask, 'id' | 
   }
 }
 
+/** Generates a 6-digit zero-padded numeric access code for client portal sign-in. */
+function generateAccessCode(): string {
+  const arr = new Uint32Array(1)
+  crypto.getRandomValues(arr)
+  return String(arr[0] % 1_000_000).padStart(6, '0')
+}
+
 function migrateEvent(e: Event): Event {
   return {
     ...e,
+    accessCode: e.accessCode && /^\d{6}$/.test(e.accessCode) ? e.accessCode : generateAccessCode(),
     ceremonies: (e.ceremonies ?? []).map(c => ({
       ...c,
       subCategories: c.subCategories.map(sub => ({
@@ -911,8 +928,12 @@ export const useStore = create<AppState>()(
 
       addEvent: (event) => {
         // Stamp the current planner's email so events are scoped per account
+        // and assign a per-event access code for client portal sign-in.
         const plannerEmail = get().session?.email ?? ''
-        set((s) => ({ events: [...s.events, { ...event, plannerEmail }] }))
+        const accessCode = event.accessCode && /^\d{6}$/.test(event.accessCode)
+          ? event.accessCode
+          : generateAccessCode()
+        set((s) => ({ events: [...s.events, { ...event, plannerEmail, accessCode }] }))
       },
       updateEvent: (id, updates) =>
         set((s) => ({

@@ -48,7 +48,16 @@ export function SendReminderModal({ open, onClose, event }: Props) {
   const clientEmail = liveEvent.clientEmail?.trim()
   const hasEmail    = !!clientEmail
 
-  const mailtoLink = `mailto:${encodeURIComponent(clientEmail ?? '')}?subject=${encodeURIComponent(buildEmailSubject(liveEvent))}&body=${encodeURIComponent(emailBody)}`
+  // mailto: URLs hit OS-imposed length caps (~2000 chars on Windows, ~8KB on
+  // most Macs/Linux). Once the encoded URL crosses ~1800 chars we switch to a
+  // Gmail web compose URL — which has no practical cap — so the email still
+  // opens correctly. Plain mailto is preferred when it fits because it works
+  // with the user's *default* mail client (Apple Mail, Outlook, etc.).
+  const subject = buildEmailSubject(liveEvent)
+  const mailtoLink   = `mailto:${encodeURIComponent(clientEmail ?? '')}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`
+  const gmailLink    = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(clientEmail ?? '')}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`
+  const useGmail     = mailtoLink.length > 1800
+  const composeLink  = useGmail ? gmailLink : mailtoLink
 
   const copyText = async (text: string) => {
     await navigator.clipboard.writeText(text)
@@ -148,14 +157,16 @@ export function SendReminderModal({ open, onClose, event }: Props) {
             {copied ? 'Copied' : 'Copy'}
           </Button>
           <a
-            href={hasEmail ? mailtoLink : undefined}
+            href={hasEmail ? composeLink : undefined}
+            target={useGmail ? '_blank' : undefined}
+            rel={useGmail ? 'noreferrer noopener' : undefined}
             onClick={!hasEmail ? (e) => e.preventDefault() : undefined}
             className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold text-white transition-all ${
               !hasEmail ? 'opacity-40 cursor-not-allowed bg-stone-400' : 'bg-[#EA4335] hover:opacity-90'
             }`}
           >
             <Mail size={14} />
-            Open Email App
+            {useGmail ? 'Open in Gmail' : 'Open Email App'}
           </a>
         </div>
 

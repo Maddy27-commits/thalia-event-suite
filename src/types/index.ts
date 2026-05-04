@@ -107,6 +107,9 @@ export interface Event {
   updatedAt: string
   /** Email of the planner who owns this event — used to scope data per planner account. */
   plannerEmail?: string
+  /** 6-digit code the client must enter alongside their email to access the portal.
+   *  Generated when the event is created; planner shares it with the client out-of-band. */
+  accessCode?: string
 }
 
 // ─── Hierarchical checklist (3 levels) ───────────────────────────────────────

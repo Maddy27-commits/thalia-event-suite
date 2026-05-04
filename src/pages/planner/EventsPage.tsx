@@ -5,6 +5,7 @@ import {
   X, Circle, Sparkles, ListChecks, Store, Star, Phone, Mail,
   ArrowRight, ArrowLeft, Heart, Building2, Cake, GraduationCap,
   PartyPopper, Briefcase, Trophy, MicVocal, MessageSquare, Eye,
+  KeyRound, Copy,
 } from 'lucide-react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useStore, getDefaultCeremonies, offsetFor } from '../../store'
@@ -799,6 +800,57 @@ function VendorAssignment({ event }: { event: Event }) {
 }
 
 // ─── Single event card ─────────────────────────────────────────────────────────
+// ─── Client Access Code Panel ────────────────────────────────────────────────
+function ClientAccessCodePanel({ event }: { event: Event }) {
+  const [copied, setCopied] = useState<'code' | 'both' | null>(null)
+  const code = event.accessCode ?? '——————'
+  const hasCode = !!event.accessCode
+
+  const copy = async (text: string, kind: 'code' | 'both') => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(kind)
+      setTimeout(() => setCopied(null), 1800)
+    } catch { /* clipboard blocked — silently ignore */ }
+  }
+
+  return (
+    <div className="px-5 py-3 bg-gradient-to-r from-sage-50/60 to-emerald-50/40 border-b border-stone-100 flex items-center gap-3 flex-wrap">
+      <div className="w-7 h-7 rounded-lg bg-sage-100 flex items-center justify-center shrink-0">
+        <KeyRound size={13} className="text-sage-700" />
+      </div>
+      <div className="flex-1 min-w-[200px]">
+        <p className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider">Client portal code</p>
+        <div className="flex items-center gap-2 mt-0.5">
+          <span className="font-mono text-base font-bold text-stone-900 tracking-[0.25em]">{code}</span>
+          {!hasCode && <span className="text-[10px] text-stone-400">(generates on next save)</span>}
+        </div>
+        <p className="text-[10px] text-stone-400 mt-0.5">Share with {event.clientName || 'your client'} so they can sign in at the client portal.</p>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <button
+          onClick={() => copy(code, 'code')}
+          disabled={!hasCode}
+          className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-full bg-white text-sage-700 ring-1 ring-sage-200 hover:bg-sage-50 disabled:opacity-40 transition-all"
+          title="Copy code"
+        >
+          {copied === 'code' ? <Check size={11} /> : <Copy size={11} />}
+          {copied === 'code' ? 'Copied' : 'Code'}
+        </button>
+        <button
+          onClick={() => copy(`Email: ${event.clientEmail}\nAccess code: ${code}`, 'both')}
+          disabled={!hasCode || !event.clientEmail}
+          className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-full bg-sage-600 text-white hover:bg-sage-700 disabled:opacity-40 transition-all"
+          title="Copy email + code together"
+        >
+          {copied === 'both' ? <Check size={11} /> : <Copy size={11} />}
+          {copied === 'both' ? 'Copied' : 'Email + code'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function EventCard({ event }: { event: Event }) {
   const { updateEvent, deleteEvent, setActiveEvent, activeEventId, enterPreviewMode } = useStore()
   const navigate = useNavigate()
@@ -888,6 +940,7 @@ function EventCard({ event }: { event: Event }) {
 
         {expanded && (
           <div className="border-t border-stone-100">
+            <ClientAccessCodePanel event={event} />
             <div className="flex items-center gap-1 px-5 pt-3 pb-0">
               {(['checklist', 'timeline'] as const).map(tab => (
                 <button key={tab}

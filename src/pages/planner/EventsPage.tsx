@@ -1209,7 +1209,7 @@ function CreateEventWizard({ open, onClose }: { open: boolean; onClose: () => vo
             <div>
               <h3 className="text-sm font-bold text-stone-900">What kind of event?</h3>
               <p className="text-xs text-stone-400 mt-0.5">
-                The category sets up ceremonies, sub-elements, and recommended timing automatically.
+                The category sets up ceremonies, stages, and recommended timing automatically.
               </p>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
@@ -1310,11 +1310,31 @@ function CreateEventWizard({ open, onClose }: { open: boolean; onClose: () => vo
                     : `${cer.offsetDaysFromEvent}d after`
                   return (
                     <div key={cer.id} className="flex items-center gap-3 bg-white ring-1 ring-stone-200 rounded-2xl px-4 py-3">
-                      <span className="text-2xl shrink-0">{cer.emoji}</span>
+                      {/* Emoji — click to edit. */}
+                      <input
+                        type="text"
+                        value={cer.emoji}
+                        onChange={e => {
+                          const v = e.target.value
+                          setCeremonies(prev => prev.map(c => c.id === cer.id ? { ...c, emoji: v } : c))
+                        }}
+                        maxLength={2}
+                        className="text-2xl w-10 text-center bg-transparent rounded-md hover:bg-stone-50 focus:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-brand-300 shrink-0"
+                        title="Tap to change the emoji"
+                      />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-stone-800">{cer.name}</p>
+                        <input
+                          type="text"
+                          value={cer.name}
+                          onChange={e => {
+                            const v = e.target.value
+                            setCeremonies(prev => prev.map(c => c.id === cer.id ? { ...c, name: v } : c))
+                          }}
+                          placeholder="Ceremony name"
+                          className="w-full text-sm font-semibold text-stone-800 bg-transparent border-b border-transparent hover:border-stone-200 focus:border-brand-400 focus:outline-none transition-colors"
+                        />
                         <p className="text-[10px] text-stone-400 mt-0.5">
-                          {cer.subCategories.length} sub-elements · {cer.subCategories.reduce((s, sub) => s + sub.tasks.length, 0)} tasks · {offsetLabel}
+                          {cer.subCategories.length} stages · {cer.subCategories.reduce((s, sub) => s + sub.tasks.length, 0)} tasks · {offsetLabel}
                         </p>
                       </div>
                       <input
@@ -1376,10 +1396,10 @@ function CreateEventWizard({ open, onClose }: { open: boolean; onClose: () => vo
               </button>
             </div>
 
-            {/* Sub-element preview — collapsible per ceremony */}
+            {/* Stages preview — collapsible per ceremony */}
             <div className="mt-4">
               <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-2">
-                Sub-elements inside each ceremony
+                Stages inside each ceremony
               </p>
               <div className="space-y-2">
                 {ceremonies.map(cer => (
@@ -1435,7 +1455,7 @@ function CreateEventWizard({ open, onClose }: { open: boolean; onClose: () => vo
               </div>
               <div className="bg-white ring-1 ring-stone-200 rounded-2xl p-3 text-center">
                 <p className="text-2xl font-black text-stone-900">{totalSubs}</p>
-                <p className="text-[10px] text-stone-400 font-bold uppercase tracking-widest mt-1">Sub-elements</p>
+                <p className="text-[10px] text-stone-400 font-bold uppercase tracking-widest mt-1">Stages</p>
               </div>
               <div className="bg-white ring-1 ring-stone-200 rounded-2xl p-3 text-center">
                 <p className="text-2xl font-black text-stone-900">{totalTasks}</p>

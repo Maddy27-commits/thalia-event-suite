@@ -227,7 +227,7 @@ export function LandingPage() {
           <div className="flex items-center gap-5 text-xs">
             <button onClick={() => navigate('/privacy')} className="text-stone-500 hover:text-stone-300 transition-colors">Privacy</button>
             <button onClick={() => navigate('/terms')}   className="text-stone-500 hover:text-stone-300 transition-colors">Terms</button>
-            <a href="mailto:hello@thalia-events.com" className="text-stone-500 hover:text-stone-300 transition-colors">Contact</a>
+            <a href="mailto:thaliaevents@gmail.com" className="text-stone-500 hover:text-stone-300 transition-colors">Contact</a>
           </div>
         </div>
       </footer>

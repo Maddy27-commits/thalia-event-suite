@@ -160,10 +160,10 @@ export function PrivacyPage() {
             <p>
               Questions or requests about your data can be sent to
               <a
-                href="mailto:hello@thalia-events.com"
+                href="mailto:thaliaevents@gmail.com"
                 className="ml-1 text-plum-700 hover:underline"
               >
-                hello@thalia-events.com
+                thaliaevents@gmail.com
               </a>
               .
             </p>

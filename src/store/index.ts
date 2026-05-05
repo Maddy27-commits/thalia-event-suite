@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware'
 import type {
   AppState, Event, Vendor, ConceptStatus, Role,
   PlannerProfile, ClientProfile, EventType,
-  EventCeremony, EventSubCategory, SubCategoryTask, TaskMessage,
+  EventCeremony, EventStage, StageTask, TaskMessage,
   AuthSession, RegisteredPlanner,
 } from '../types'
 import { offsetDate } from '../lib/utils'
@@ -139,7 +139,7 @@ function saveAccounts(accounts: RegisteredPlanner[]): void {
 }
 
 // ─── Sub-category factory helpers ──────────────────────────────────────────────
-function mkTask(label: string, off: number, ceremonyDate: string): SubCategoryTask {
+function mkTask(label: string, off: number, ceremonyDate: string): StageTask {
   return {
     id: uid(),
     label,
@@ -153,7 +153,7 @@ function mkTask(label: string, off: number, ceremonyDate: string): SubCategoryTa
   }
 }
 
-function mkSub(name: string, emoji: string, taskLabels: string[], ceremonyDate: string): EventSubCategory {
+function mkSub(name: string, emoji: string, taskLabels: string[], ceremonyDate: string): EventStage {
   const off = offsetFor(name)
   return {
     id: uid(),
@@ -169,7 +169,7 @@ function mkSub(name: string, emoji: string, taskLabels: string[], ceremonyDate: 
  * (storage was previously v4 without phases/messages/options). This keeps users'
  * existing checklists intact when the app upgrades.
  */
-function migrateTask(t: Partial<SubCategoryTask> & Pick<SubCategoryTask, 'id' | 'label'>): SubCategoryTask {
+function migrateTask(t: Partial<StageTask> & Pick<StageTask, 'id' | 'label'>): StageTask {
   return {
     id: t.id,
     label: t.label,
@@ -190,22 +190,34 @@ function generateAccessCode(): string {
   return String(arr[0] % 1_000_000).padStart(6, '0')
 }
 
+/**
+ * Bring a persisted Event up to the current schema. Two known migrations:
+ *   1. Generate an access code if one is missing (added in a later release).
+ *   2. Field rename: `subCategories` -> `stages`. Pre-rename localStorage
+ *      entries still carry `subCategories`; we copy them across so they
+ *      keep working without a destructive reset.
+ */
 function migrateEvent(e: Event): Event {
   return {
     ...e,
     accessCode: e.accessCode && /^\d{6}$/.test(e.accessCode) ? e.accessCode : generateAccessCode(),
-    ceremonies: (e.ceremonies ?? []).map(c => ({
-      ...c,
-      subCategories: c.subCategories.map(sub => ({
-        ...sub,
-        tasks: sub.tasks.map(migrateTask),
-      })),
-    })),
+    ceremonies: (e.ceremonies ?? []).map(c => {
+      // Legacy: pre-rename ceremonies persisted with `subCategories` instead of `stages`.
+      const legacy = c as unknown as { subCategories?: EventStage[] }
+      const sourceStages: EventStage[] = c.stages ?? legacy.subCategories ?? []
+      return {
+        ...c,
+        stages: sourceStages.map(stage => ({
+          ...stage,
+          tasks: stage.tasks.map(migrateTask),
+        })),
+      }
+    }),
   }
 }
 
-// Default sub-category sets for different ceremony "kinds"
-function weddingCeremonySubs(date: string): EventSubCategory[] {
+// Default stage sets for different ceremony "kinds"
+function weddingCeremonySubs(date: string): EventStage[] {
   return [
     mkSub('Venue & Logistics', '🚐', [
       'Venue confirmed',
@@ -254,8 +266,8 @@ function weddingCeremonySubs(date: string): EventSubCategory[] {
   ]
 }
 
-function lightCeremonySubs(date: string): EventSubCategory[] {
-  // smaller ceremonies (Roka, Haldi) need fewer sub-categories
+function lightCeremonySubs(date: string): EventStage[] {
+  // smaller ceremonies (Roka, Haldi) need fewer stages
   return [
     mkSub('Venue & Logistics', '🚐', [
       'Venue confirmed',
@@ -281,7 +293,7 @@ function lightCeremonySubs(date: string): EventSubCategory[] {
   ]
 }
 
-function birthdaySubs(date: string): EventSubCategory[] {
+function birthdaySubs(date: string): EventStage[] {
   return [
     mkSub('Theme & Decor', '🎈', [
       'Theme decided',
@@ -309,7 +321,7 @@ function birthdaySubs(date: string): EventSubCategory[] {
   ]
 }
 
-function corporateSubs(date: string): EventSubCategory[] {
+function corporateSubs(date: string): EventStage[] {
   return [
     mkSub('Venue & Setup', '🏛️', [
       'Hall layout confirmed',
@@ -345,7 +357,7 @@ function corporateSubs(date: string): EventSubCategory[] {
   ]
 }
 
-function galaSubs(date: string): EventSubCategory[] {
+function galaSubs(date: string): EventStage[] {
   return [
     mkSub('Venue & Ambience', '🏛️', [
       'Venue confirmed',
@@ -375,7 +387,7 @@ function galaSubs(date: string): EventSubCategory[] {
   ]
 }
 
-function genericSubs(date: string): EventSubCategory[] {
+function genericSubs(date: string): EventStage[] {
   return [
     mkSub('Venue & Setup', '🏛️', ['Venue confirmed', 'Layout planned'], date),
     mkSub('Food & Beverages', '🍽️', ['Caterer booked', 'Menu confirmed'], date),
@@ -402,14 +414,14 @@ const WEDDING_CEREMONIES: Array<{ name: string; emoji: string; offsetDays: numbe
  * date computed from the main event date plus its offset.
  */
 export function getDefaultCeremonies(type: EventType, eventDate: string): EventCeremony[] {
-  const mk = (name: string, emoji: string, offsetDays: number, subs: EventSubCategory[]): EventCeremony => ({
+  const mk = (name: string, emoji: string, offsetDays: number, subs: EventStage[]): EventCeremony => ({
     id: uid(),
     name,
     emoji,
     offsetDaysFromEvent: offsetDays,
     date: offsetDate(eventDate, offsetDays),
     notes: '',
-    subCategories: subs,
+    stages: subs,
   })
 
   switch (type) {
@@ -684,7 +696,7 @@ const E2_DATE = '2026-11-08'
 
 // Sample seeded conversation that shows what the task drill-down looks like
 // once a planner has been actively working through a decision with a client.
-function seedVenueConversation(): { messages: TaskMessage[]; phase: SubCategoryTask['currentPhase'] } {
+function seedVenueConversation(): { messages: TaskMessage[]; phase: StageTask['currentPhase'] } {
   const dayMs = 1000 * 60 * 60 * 24
   const now = Date.now()
   return {
@@ -736,7 +748,7 @@ function seedWedding(date: string): EventCeremony[] {
   const ceremonies = getDefaultCeremonies('wedding', date)
   const wedding = ceremonies.find(c => c.name === 'Wedding')
   if (wedding) {
-    const venue = wedding.subCategories.find(s => s.name === 'Venue & Logistics')
+    const venue = wedding.stages.find(s => s.name === 'Venue & Logistics')
     if (venue) {
       const venueTask = venue.tasks[0]
       const seeded = seedVenueConversation()
@@ -775,17 +787,17 @@ function seedWedding(date: string): EventCeremony[] {
         },
       ]
     }
-    const photo = wedding.subCategories.find(s => s.name === 'Photography & Video')
+    const photo = wedding.stages.find(s => s.name === 'Photography & Video')
     if (photo) {
       photo.tasks[0].completed = true
       photo.tasks[1].completed = true
     }
-    const food = wedding.subCategories.find(s => s.name === 'Catering & Food')
+    const food = wedding.stages.find(s => s.name === 'Catering & Food')
     if (food) food.tasks[0].completed = true
   }
   const mehendi = ceremonies.find(c => c.name === 'Mehendi')
   if (mehendi) {
-    const beauty = mehendi.subCategories.find(s => s.name === 'Beauty & Grooming')
+    const beauty = mehendi.stages.find(s => s.name === 'Beauty & Grooming')
     if (beauty) beauty.tasks[0].completed = true
   }
   return ceremonies
@@ -795,8 +807,8 @@ function seedGala(date: string): EventCeremony[] {
   const ceremonies = getDefaultCeremonies('gala', date)
   const main = ceremonies[0]
   if (main) {
-    main.subCategories[0].tasks[0].completed = true
-    main.subCategories[2].tasks[0].completed = true
+    main.stages[0].tasks[0].completed = true
+    main.stages[2].tasks[0].completed = true
   }
   return ceremonies
 }
@@ -976,13 +988,13 @@ function mapTask(
   ceremonyId: string,
   subId: string,
   taskId: string,
-  fn: (t: SubCategoryTask) => SubCategoryTask
+  fn: (t: StageTask) => StageTask
 ): Event[] {
   return mapCeremony(events, eventId, c =>
     c.id === ceremonyId
       ? {
           ...c,
-          subCategories: c.subCategories.map(sub =>
+          stages: c.stages.map(sub =>
             sub.id === subId
               ? { ...sub, tasks: sub.tasks.map(t => (t.id === taskId ? fn(t) : t)) }
               : sub
@@ -1179,7 +1191,7 @@ export const useStore = create<AppState>()(
           ceremonies: (original.ceremonies ?? []).map((cer) => ({
             ...cer,
             id: uid(),
-            subCategories: cer.subCategories.map((sub) => ({
+            stages: cer.stages.map((sub) => ({
               ...sub,
               id: uid(),
               tasks: sub.tasks.map((t) => ({
@@ -1321,38 +1333,38 @@ export const useStore = create<AppState>()(
           ),
         })),
 
-      addSubCategory: (eventId, ceremonyId, sub) =>
+      addStage: (eventId, ceremonyId, sub) =>
         set((s) => ({
           events: mapCeremony(s.events, eventId, c =>
-            c.id === ceremonyId ? { ...c, subCategories: [...c.subCategories, sub] } : c
+            c.id === ceremonyId ? { ...c, stages: [...c.stages, sub] } : c
           ),
         })),
 
-      deleteSubCategory: (eventId, ceremonyId, subId) =>
+      deleteStage: (eventId, ceremonyId, subId) =>
         set((s) => ({
           events: mapCeremony(s.events, eventId, c =>
-            c.id === ceremonyId ? { ...c, subCategories: c.subCategories.filter(sub => sub.id !== subId) } : c
+            c.id === ceremonyId ? { ...c, stages: c.stages.filter(sub => sub.id !== subId) } : c
           ),
         })),
 
-      addSubCategoryTask: (eventId, ceremonyId, subId, task) =>
+      addStageTask: (eventId, ceremonyId, subId, task) =>
         set((s) => ({
           events: mapCeremony(s.events, eventId, c =>
             c.id === ceremonyId ? {
               ...c,
-              subCategories: c.subCategories.map(sub =>
+              stages: c.stages.map(sub =>
                 sub.id === subId ? { ...sub, tasks: [...sub.tasks, task] } : sub
               ),
             } : c
           ),
         })),
 
-      toggleSubCategoryTask: (eventId, ceremonyId, subId, taskId) =>
+      toggleStageTask: (eventId, ceremonyId, subId, taskId) =>
         set((s) => ({
           events: mapCeremony(s.events, eventId, c =>
             c.id === ceremonyId ? {
               ...c,
-              subCategories: c.subCategories.map(sub =>
+              stages: c.stages.map(sub =>
                 sub.id === subId ? {
                   ...sub,
                   tasks: sub.tasks.map(t => t.id === taskId ? { ...t, completed: !t.completed } : t),
@@ -1362,12 +1374,12 @@ export const useStore = create<AppState>()(
           ),
         })),
 
-      updateSubCategoryTask: (eventId, ceremonyId, subId, taskId, updates) =>
+      updateStageTask: (eventId, ceremonyId, subId, taskId, updates) =>
         set((s) => ({
           events: mapCeremony(s.events, eventId, c =>
             c.id === ceremonyId ? {
               ...c,
-              subCategories: c.subCategories.map(sub =>
+              stages: c.stages.map(sub =>
                 sub.id === subId ? {
                   ...sub,
                   tasks: sub.tasks.map(t => t.id === taskId ? { ...t, ...updates } : t),
@@ -1377,12 +1389,12 @@ export const useStore = create<AppState>()(
           ),
         })),
 
-      deleteSubCategoryTask: (eventId, ceremonyId, subId, taskId) =>
+      deleteStageTask: (eventId, ceremonyId, subId, taskId) =>
         set((s) => ({
           events: mapCeremony(s.events, eventId, c =>
             c.id === ceremonyId ? {
               ...c,
-              subCategories: c.subCategories.map(sub =>
+              stages: c.stages.map(sub =>
                 sub.id === subId ? { ...sub, tasks: sub.tasks.filter(t => t.id !== taskId) } : sub
               ),
             } : c

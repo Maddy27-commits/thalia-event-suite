@@ -6,7 +6,24 @@
       "Bash(npx tsc *)",
       "Bash(echo \"EXIT=$?\")",
       "Bash(npx vite *)",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "Bash(gh auth *)",
+      "Bash(gh repo *)",
+      "Bash(git --version)",
+      "Read(//opt/homebrew/bin/**)",
+      "Read(//usr/local/bin/**)",
+      "Bash(gh pr create --base main --head docs/readme --title 'docs: add README with architecture overview and deploy guide' --body ' *)",
+      "Bash(gh api *)",
+      "Bash(git config *)",
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "mcp__Claude_in_Chrome__navigate",
+      "mcp__Claude_in_Chrome__computer",
+      "WebFetch(domain:webflow.com)",
+      "Bash(gh pr *)",
+      "Bash(cat wrangler.toml)",
+      "Bash(cat wrangler.json)",
+      "Bash(ls .github/)",
+      "Bash(npx wrangler *)"
     ]
   }
 }

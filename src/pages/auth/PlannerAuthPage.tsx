@@ -1,16 +1,32 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Eye, EyeOff } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { ArrowLeft, Eye, EyeOff, X } from 'lucide-react'
 import { useStore } from '../../store'
 import { ThaliaBloomMark } from '../../components/ui/ThaliaLogo'
 
 type Tab = 'signin' | 'signup'
 
+const MIN_PASSWORD_LENGTH = 8
+
+/** Compute a 0..4 strength score for live feedback during sign-up. */
+function passwordStrength(pw: string): { score: number; label: string; colour: string } {
+  let score = 0
+  if (pw.length >= 8)  score++
+  if (pw.length >= 12) score++
+  if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) score++
+  if (/[0-9]/.test(pw)) score++
+  if (/[^A-Za-z0-9]/.test(pw)) score++
+  const labels = ['Too short', 'Weak', 'Okay', 'Strong', 'Excellent']
+  const colours = ['bg-stone-300', 'bg-rose-400', 'bg-amber-400', 'bg-sage-500', 'bg-emerald-500']
+  const idx = Math.min(score, labels.length - 1)
+  return { score, label: labels[idx], colour: colours[idx] }
+}
+
 export function PlannerAuthPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { registeredPlanners, login, registerPlanner, verifyPlannerPassword } = useStore()
 
-  // Always open on sign-in — users with no account can switch to Create account
   const [tab, setTab]           = useState<Tab>('signin')
   const [name, setName]         = useState('')
   const [business, setBusiness] = useState('')
@@ -19,8 +35,50 @@ export function PlannerAuthPage() {
   const [showPw, setShowPw]     = useState(false)
   const [error, setError]       = useState('')
   const [loading, setLoading]   = useState(false)
+  const [showForgot, setShowForgot] = useState(false)
+  const [forgotEmail, setForgotEmail] = useState('')
+  const [forgotMsg, setForgotMsg]   = useState('')
+
+  // ── Demo-mode landing — auto-create / sign in to a sandboxed planner so a
+  // first-time visitor can poke around without filling a sign-up form.
+  useEffect(() => {
+    if (searchParams.get('demo') !== '1') return
+    let cancelled = false
+    ;(async () => {
+      const demoEmail = 'demo@thalia-events.com'
+      const demoPwd   = 'demo-passphrase-2026'
+      const exists = registeredPlanners.find((p) => p.email.toLowerCase() === demoEmail)
+      if (!exists) {
+        await registerPlanner({ name: 'Demo Planner', businessName: 'Thalia Demo Studio', email: demoEmail, password: demoPwd })
+      }
+      if (cancelled) return
+      const ok = await verifyPlannerPassword(demoEmail, demoPwd)
+      if (ok && !cancelled) {
+        login({ role: 'planner', displayName: 'Demo Planner', email: demoEmail, isPlannerPreview: false })
+        navigate('/planner', { replace: true })
+      }
+    })()
+    return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const switchTab = (t: Tab) => { setTab(t); setError('') }
+
+  const handleForgotSubmit = () => {
+    setForgotMsg('')
+    const trimmed = forgotEmail.trim().toLowerCase()
+    if (!trimmed) return
+    const match = registeredPlanners.find((p) => p.email.toLowerCase() === trimmed)
+    if (!match) {
+      // Don't leak account existence — return the same friendly message
+      setForgotMsg("If we have an account for that email, we've sent reset instructions. Check your inbox in the next few minutes.")
+      return
+    }
+    // Real password recovery would email a signed reset link via the same
+    // delivery service used for client emails. For this preview we display
+    // a friendly stub so the UX is testable end-to-end.
+    setForgotMsg("If we have an account for that email, we've sent reset instructions. (Preview build: email delivery is not yet wired — please contact the planner-suite admin to reset.)")
+  }
 
   const handleSignIn = async () => {
     setError('')
@@ -42,9 +100,9 @@ export function PlannerAuthPage() {
 
   const handleSignUp = async () => {
     setError('')
-    if (!name.trim())         { setError('Please enter your name.'); return }
-    if (!email.trim())        { setError('Please enter your email.'); return }
-    if (password.length < 6)  { setError('Password must be at least 6 characters.'); return }
+    if (!name.trim())                          { setError('Please enter your name.'); return }
+    if (!email.trim())                         { setError('Please enter your email.'); return }
+    if (password.length < MIN_PASSWORD_LENGTH) { setError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`); return }
 
     setLoading(true)
     const result = await registerPlanner({
@@ -165,6 +223,11 @@ export function PlannerAuthPage() {
                 Create one
               </button>
             </p>
+            <p className="text-center text-stone-600 text-[11px]">
+              <button onClick={() => { setForgotEmail(email); setForgotMsg(''); setShowForgot(true) }} className="text-stone-500 hover:text-stone-300 transition-colors underline-offset-4 hover:underline">
+                Forgot password?
+              </button>
+            </p>
           </div>
         )}
 
@@ -212,7 +275,7 @@ export function PlannerAuthPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSignUp()}
-                  placeholder="At least 6 characters"
+                  placeholder={`At least ${MIN_PASSWORD_LENGTH} characters`}
                   className={`${inputCls} pr-11`}
                 />
                 <button
@@ -223,6 +286,22 @@ export function PlannerAuthPage() {
                   {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
               </div>
+              {/* Live strength meter — silent until the user starts typing */}
+              {password.length > 0 && (() => {
+                const s = passwordStrength(password)
+                return (
+                  <div className="mt-2">
+                    <div className="flex gap-1">
+                      {[0, 1, 2, 3, 4].map((i) => (
+                        <div key={i} className={`h-1 flex-1 rounded-full transition-colors ${i < s.score ? s.colour : 'bg-white/10'}`} />
+                      ))}
+                    </div>
+                    <p className={`text-[10px] mt-1 font-medium ${s.score >= 3 ? 'text-emerald-400' : s.score >= 2 ? 'text-amber-300' : 'text-rose-300'}`}>
+                      {s.label} · use 8+ characters with letters, numbers and symbols.
+                    </p>
+                  </div>
+                )
+              })()}
             </div>
 
             {error && <p className="text-rose-400 text-xs font-medium">{error}</p>}
@@ -244,6 +323,39 @@ export function PlannerAuthPage() {
           </div>
         )}
       </div>
+
+      {/* ── Forgot password modal ── */}
+      {showForgot && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={() => setShowForgot(false)}>
+          <div onClick={(e) => e.stopPropagation()} className="bg-[#1a1916] ring-1 ring-white/10 rounded-2xl max-w-sm w-full p-6 relative animate-fade-in">
+            <button
+              onClick={() => setShowForgot(false)}
+              className="absolute top-3 right-3 text-stone-500 hover:text-white p-1 rounded-md hover:bg-white/5"
+            >
+              <X size={14} />
+            </button>
+            <p className="text-white font-bold text-base mb-1">Reset your password</p>
+            <p className="text-stone-400 text-xs mb-4 leading-relaxed">
+              Enter the email address on your account. We'll send instructions for resetting your password.
+            </p>
+            <input
+              type="email"
+              value={forgotEmail}
+              onChange={(e) => setForgotEmail(e.target.value)}
+              placeholder="you@studio.com"
+              autoFocus
+              className={inputCls}
+            />
+            {forgotMsg && <p className="text-emerald-400 text-xs mt-3 leading-relaxed">{forgotMsg}</p>}
+            <button
+              onClick={handleForgotSubmit}
+              className="w-full mt-4 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-all shadow-sm"
+            >
+              Send reset email
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

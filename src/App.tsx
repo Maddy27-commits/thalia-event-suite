@@ -20,11 +20,14 @@ import { AIGeneratorPage } from './pages/planner/AIGeneratorPage'
 // Client pages
 import { ClientDashboard } from './pages/client/ClientDashboard'
 import { ConceptsPage } from './pages/client/ConceptsPage'
-import { ApprovalsPage } from './pages/client/ApprovalsPage'
 import { ProgressPage } from './pages/client/ProgressPage'
 
 // Settings
 import { SettingsPage } from './pages/settings/SettingsPage'
+
+// Legal
+import { PrivacyPage } from './pages/legal/PrivacyPage'
+import { TermsPage } from './pages/legal/TermsPage'
 
 // ── Preview mode banner ───────────────────────────────────────────────────────
 function PreviewBanner() {
@@ -139,6 +142,8 @@ export default function App() {
         <Route path="/welcome"        element={<LandingPage />} />
         <Route path="/auth/planner"   element={<PlannerAuthPage />} />
         <Route path="/auth/client"    element={<ClientAuthPage />} />
+        <Route path="/privacy"        element={<PrivacyPage />} />
+        <Route path="/terms"          element={<TermsPage />} />
 
         {/* Protected app routes (with shell) */}
         <Route
@@ -206,14 +211,8 @@ export default function App() {
             </ProtectedClient>
           }
         />
-        <Route
-          path="/client/approvals"
-          element={
-            <ProtectedClient>
-              <AppShell><ApprovalsPage /></AppShell>
-            </ProtectedClient>
-          }
-        />
+        {/* Approvals merged into Concepts — keep redirect for any old links. */}
+        <Route path="/client/approvals" element={<Navigate to="/client/concepts" replace />} />
         <Route
           path="/client/progress"
           element={

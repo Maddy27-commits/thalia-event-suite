@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main          # auto-deploy on every push to main
+  pull_request:
+    branches:
+      - main          # run Build & Deploy as a status check on PRs into main
   workflow_dispatch:  # allow manual trigger from GitHub Actions tab
 
 jobs:
@@ -30,7 +33,10 @@ jobs:
       - name: Build
         run: npm run build
 
+      # Only deploy on push to main (or manual dispatch). PRs run the build
+      # as a status check but do NOT push to production.
       - name: Deploy to Cloudflare Pages
+        if: github.event_name != 'pull_request'
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}

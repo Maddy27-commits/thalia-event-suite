@@ -18,17 +18,18 @@ const plannerNav = [
   { to: '/planner',              label: 'Dashboard',    icon: LayoutDashboard, end: true  },
   { to: '/planner/events',       label: 'Events',       icon: CalendarDays                },
   { to: '/planner/vendors',      label: 'Vendors',      icon: Store                       },
-  { to: '/planner/clients',      label: 'Clients',      icon: Users                       },
+  { to: '/planner/clients',      label: 'Briefs',       icon: Users                       },
   { to: '/planner/ai-generator', label: 'AI Generator', icon: Wand2,          ai: true   },
   { to: '/planner/settings',     label: 'Settings',     icon: Settings                    },
 ]
 
+// Concepts and Approvals merged into a single Concepts page that handles
+// both library browsing and pending-decision actions.
 const clientNav = [
-  { to: '/client',            label: 'My Event',        icon: Eye,         end: true },
-  { to: '/client/concepts',   label: 'Design Concepts', icon: Sparkles               },
-  { to: '/client/approvals',  label: 'Approvals',       icon: CheckSquare            },
-  { to: '/client/progress',   label: 'Progress',        icon: TrendingUp             },
-  { to: '/client/settings',   label: 'Settings',        icon: Settings               },
+  { to: '/client',            label: 'My Event',           icon: Eye,         end: true },
+  { to: '/client/concepts',   label: 'Concepts & Approvals', icon: Sparkles             },
+  { to: '/client/progress',   label: 'Progress',           icon: TrendingUp             },
+  { to: '/client/settings',   label: 'Settings',           icon: Settings               },
 ]
 
 export function Sidebar({ onClose }: SidebarProps) {

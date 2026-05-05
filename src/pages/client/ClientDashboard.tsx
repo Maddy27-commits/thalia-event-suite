@@ -1,4 +1,4 @@
-import { CalendarDays, MapPin, Users, Sparkles, CheckCircle2, Clock, ArrowRight } from 'lucide-react'
+import { CalendarDays, MapPin, Users, Sparkles, CheckCircle2, Clock, ArrowRight, MessageSquare } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../../store'
 import { useClientEvent } from '../../hooks/useClientEvent'
@@ -256,6 +256,24 @@ export function ClientDashboard() {
               </div>
             )}
           </div>
+        </CardBody>
+      </Card>
+
+      {/* ── Message planner CTA ── */}
+      <Card className="bg-gradient-to-br from-brand-50/50 to-sage-50/40">
+        <CardBody className="flex items-center gap-4 py-4 px-4 sm:px-6">
+          <div className="w-11 h-11 rounded-2xl bg-white shadow-sm flex items-center justify-center shrink-0">
+            <MessageSquare size={18} className="text-brand-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-stone-900">Need to ask your planner something?</p>
+            <p className="text-xs text-stone-500 mt-0.5 leading-relaxed">
+              Open any decision in <strong>Progress</strong> to start a discussion thread — your planner gets notified instantly.
+            </p>
+          </div>
+          <Button variant="client" size="sm" onClick={() => navigate('/client/progress')} className="shrink-0">
+            Go to Progress
+          </Button>
         </CardBody>
       </Card>
 

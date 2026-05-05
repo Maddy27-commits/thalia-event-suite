@@ -143,7 +143,7 @@ export interface Event {
 }
 
 // ─── Hierarchical checklist (3 levels) ───────────────────────────────────────
-// Event → Ceremony[] → SubCategory[] → SubCategoryTask[]
+// Event → Ceremony[] → Stage[] → StageTask[]
 
 // ─── Task drill-down: phases, conversation, recommendations ──────────────────
 /**
@@ -205,8 +205,8 @@ export interface TaskOption {
   createdAt: string
 }
 
-/** A single actionable task within a sub-category. */
-export interface SubCategoryTask {
+/** A single actionable task within a stage. */
+export interface StageTask {
   id: string
   label: string
   completed: boolean
@@ -223,14 +223,14 @@ export interface SubCategoryTask {
   options: TaskOption[]
 }
 
-/** A sub-category within a ceremony — Decor, Food, Outfits, etc. */
-export interface EventSubCategory {
+/** A stage within a ceremony — Decor, Food, Outfits, etc. */
+export interface EventStage {
   id: string
   name: string
   emoji: string
-  /** Suggested lead-time for this whole sub-category (used as default for new tasks). */
+  /** Suggested lead-time for this whole stage (used as default for new tasks). */
   defaultOffsetDays: number
-  tasks: SubCategoryTask[]
+  tasks: StageTask[]
 }
 
 /**
@@ -247,7 +247,7 @@ export interface EventCeremony {
   /** Days OFFSET from the main event.date. 0 = same day; -1 = day before. */
   offsetDaysFromEvent: number
   notes: string
-  subCategories: EventSubCategory[]
+  stages: EventStage[]
 }
 
 // ─── AI Concepts ─────────────────────────────────────────────────────────────
@@ -389,19 +389,19 @@ export interface AppState {
   updateMilestone: (eventId: string, milestoneId: string, updates: Partial<EventMilestone>) => void
   deleteMilestone: (eventId: string, milestoneId: string) => void
 
-  // Hierarchical checklist (Event → Ceremony → SubCategory → Task)
+  // Hierarchical checklist (Event → Ceremony → Stage → Task)
   setCeremonies: (eventId: string, ceremonies: EventCeremony[]) => void
   addCeremony: (eventId: string, ceremony: EventCeremony) => void
   updateCeremony: (eventId: string, ceremonyId: string, updates: Partial<EventCeremony>) => void
   deleteCeremony: (eventId: string, ceremonyId: string) => void
 
-  addSubCategory: (eventId: string, ceremonyId: string, sub: EventSubCategory) => void
-  deleteSubCategory: (eventId: string, ceremonyId: string, subId: string) => void
+  addStage: (eventId: string, ceremonyId: string, sub: EventStage) => void
+  deleteStage: (eventId: string, ceremonyId: string, subId: string) => void
 
-  addSubCategoryTask: (eventId: string, ceremonyId: string, subId: string, task: SubCategoryTask) => void
-  toggleSubCategoryTask: (eventId: string, ceremonyId: string, subId: string, taskId: string) => void
-  updateSubCategoryTask: (eventId: string, ceremonyId: string, subId: string, taskId: string, updates: Partial<SubCategoryTask>) => void
-  deleteSubCategoryTask: (eventId: string, ceremonyId: string, subId: string, taskId: string) => void
+  addStageTask: (eventId: string, ceremonyId: string, subId: string, task: StageTask) => void
+  toggleStageTask: (eventId: string, ceremonyId: string, subId: string, taskId: string) => void
+  updateStageTask: (eventId: string, ceremonyId: string, subId: string, taskId: string, updates: Partial<StageTask>) => void
+  deleteStageTask: (eventId: string, ceremonyId: string, subId: string, taskId: string) => void
 
   // Task drill-down: phase, conversation thread, options/recommendations
   setTaskPhase: (eventId: string, ceremonyId: string, subId: string, taskId: string, phase: TaskPhase) => void

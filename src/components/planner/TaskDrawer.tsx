@@ -5,7 +5,7 @@ import {
   ChevronRight, CheckCircle2, Calendar, Wand2, Lightbulb,
 } from 'lucide-react'
 import type {
-  Event, EventCeremony, EventSubCategory, SubCategoryTask,
+  Event, EventCeremony, EventStage, StageTask,
   TaskPhase, TaskMessage, TaskOption, MessageChannel, MessageAuthor, OptionStatus,
 } from '../../types'
 import { TASK_PHASES } from '../../types'
@@ -16,8 +16,8 @@ import { extractTaskInsight, suggestDiscussionStarters, suggestTaskOptions } fro
 interface TaskDrawerProps {
   event: Event
   ceremony: EventCeremony
-  sub: EventSubCategory
-  task: SubCategoryTask
+  sub: EventStage
+  task: StageTask
   onClose: () => void
 }
 
@@ -61,7 +61,7 @@ export function TaskDrawer({ event, ceremony, sub, task, onClose }: TaskDrawerPr
   const {
     setTaskPhase, addTaskMessage, deleteTaskMessage, updateTaskMessage,
     addTaskOption, updateTaskOption, deleteTaskOption,
-    toggleSubCategoryTask, updateSubCategoryTask, deleteSubCategoryTask,
+    toggleStageTask, updateStageTask, deleteStageTask,
   } = useStore()
 
   const [activePhase, setActivePhase] = useState<TaskPhase>(task.currentPhase)
@@ -197,7 +197,7 @@ export function TaskDrawer({ event, ceremony, sub, task, onClose }: TaskDrawerPr
 
   const handleDateSave = () => {
     if (dateDraft && dateDraft !== task.dueDate) {
-      updateSubCategoryTask(event.id, ceremony.id, sub.id, task.id, { dueDate: dateDraft })
+      updateStageTask(event.id, ceremony.id, sub.id, task.id, { dueDate: dateDraft })
     }
     setEditingDate(false)
   }
@@ -277,7 +277,7 @@ export function TaskDrawer({ event, ceremony, sub, task, onClose }: TaskDrawerPr
         <div className="px-6 py-4 border-b border-stone-100 bg-gradient-to-br from-white to-stone-50/50 shrink-0">
           <div className="flex items-start gap-3">
             <button
-              onClick={() => toggleSubCategoryTask(event.id, ceremony.id, sub.id, task.id)}
+              onClick={() => toggleStageTask(event.id, ceremony.id, sub.id, task.id)}
               className={cn(
                 'w-6 h-6 mt-1 rounded-md border-2 flex items-center justify-center shrink-0 transition-all',
                 task.completed ? 'border-emerald-500 bg-emerald-500' : 'border-stone-300 hover:border-brand-400',
@@ -339,7 +339,7 @@ export function TaskDrawer({ event, ceremony, sub, task, onClose }: TaskDrawerPr
               <button
                 onClick={() => {
                   if (confirm(`Delete task "${task.label}"?`)) {
-                    deleteSubCategoryTask(event.id, ceremony.id, sub.id, task.id)
+                    deleteStageTask(event.id, ceremony.id, sub.id, task.id)
                     onClose()
                   }
                 }}

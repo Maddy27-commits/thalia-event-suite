@@ -17,7 +17,7 @@ import { Input, Select } from '../../components/ui/Input'
 import { SendReminderModal } from '../../components/planner/SendReminderModal'
 import { TaskDrawer } from '../../components/planner/TaskDrawer'
 import { formatCurrency, formatDate, daysUntil, generateId, completionPercent, offsetDate } from '../../lib/utils'
-import type { Event, EventType, EventStatus, EventMilestone, EventCeremony, EventSubCategory, SubCategoryTask } from '../../types'
+import type { Event, EventType, EventStatus, EventMilestone, EventCeremony, EventStage, StageTask } from '../../types'
 
 const EVENT_TYPES: { value: EventType; label: string; icon: React.ElementType; description: string; gradient: string }[] = [
   { value: 'wedding',     label: 'Wedding',     icon: Heart,         description: 'Multi-day with ceremonies, sangeet, reception', gradient: 'from-rose-400 to-pink-600' },
@@ -252,8 +252,8 @@ function EditDetailsForm({ event, onClose }: { event: Event; onClose: () => void
 // ─── Hierarchical Ceremony Checklist ──────────────────────────────────────────
 function CeremonyChecklist({ event }: { event: Event }) {
   const {
-    addSubCategoryTask, toggleSubCategoryTask, updateSubCategoryTask, deleteSubCategoryTask,
-    deleteSubCategory, addSubCategory, updateCeremony, deleteCeremony,
+    addStageTask, toggleStageTask, updateStageTask, deleteStageTask,
+    deleteStage, addStage, updateCeremony, deleteCeremony,
   } = useStore()
   const ceremonies = event.ceremonies ?? []
   const [selectedCeremonyId, setSelectedCeremonyId] = useState(ceremonies[0]?.id ?? '')
@@ -284,15 +284,15 @@ function CeremonyChecklist({ event }: { event: Event }) {
     return <div className="px-5 py-6 text-center text-stone-400 text-sm">No ceremonies yet</div>
   }
 
-  // Overall progress across ALL ceremonies and ALL sub-categories
-  const allTasks = ceremonies.flatMap(c => c.subCategories.flatMap(s => s.tasks))
+  // Overall progress across ALL ceremonies and ALL stages
+  const allTasks = ceremonies.flatMap(c => c.stages.flatMap(s => s.tasks))
   const allDone  = allTasks.filter(t => t.completed).length
   const overallPct = allTasks.length ? Math.round((allDone / allTasks.length) * 100) : 0
 
-  const handleAddTask = (sub: EventSubCategory) => {
+  const handleAddTask = (sub: EventStage) => {
     if (!newTaskLabel.trim() || !selected) return
     const off = sub.defaultOffsetDays
-    const task: SubCategoryTask = {
+    const task: StageTask = {
       id: generateId(),
       label: newTaskLabel.trim(),
       completed: false,
@@ -303,7 +303,7 @@ function CeremonyChecklist({ event }: { event: Event }) {
       messages: [],
       options: [],
     }
-    addSubCategoryTask(event.id, selected.id, sub.id, task)
+    addStageTask(event.id, selected.id, sub.id, task)
     setNewTaskLabel('')
     setAddingTaskInSub(null)
   }
@@ -311,7 +311,7 @@ function CeremonyChecklist({ event }: { event: Event }) {
   const handleAddSub = () => {
     if (!newSubName.trim() || !selected) return
     const off = offsetFor(newSubName.trim())
-    addSubCategory(event.id, selected.id, {
+    addStage(event.id, selected.id, {
       id: generateId(),
       name: newSubName.trim(),
       emoji: newSubEmoji,
@@ -341,8 +341,8 @@ function CeremonyChecklist({ event }: { event: Event }) {
         {ceremonies
           .sort((a, b) => a.offsetDaysFromEvent - b.offsetDaysFromEvent)
           .map(cer => {
-            const tasksTotal = cer.subCategories.reduce((s, sub) => s + sub.tasks.length, 0)
-            const tasksDone  = cer.subCategories.reduce((s, sub) => s + sub.tasks.filter(t => t.completed).length, 0)
+            const tasksTotal = cer.stages.reduce((s, sub) => s + sub.tasks.length, 0)
+            const tasksDone  = cer.stages.reduce((s, sub) => s + sub.tasks.filter(t => t.completed).length, 0)
             const active = cer.id === selectedCeremonyId
             return (
               <button
@@ -430,7 +430,7 @@ function CeremonyChecklist({ event }: { event: Event }) {
           </div>
 
           {/* Sub-categories — accordion */}
-          {selected.subCategories.map(sub => {
+          {selected.stages.map(sub => {
             const expanded = expandedSubId === sub.id
             const total = sub.tasks.length
             const done  = sub.tasks.filter(t => t.completed).length
@@ -465,11 +465,11 @@ function CeremonyChecklist({ event }: { event: Event }) {
                     onClick={(e) => {
                       e.stopPropagation()
                       if (confirm(`Remove "${sub.name}" from ${selected.name}?`)) {
-                        deleteSubCategory(event.id, selected.id, sub.id)
+                        deleteStage(event.id, selected.id, sub.id)
                       }
                     }}
                     className="w-5 h-5 rounded-full bg-red-50 hover:bg-red-100 text-red-400 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                    title="Remove sub-category"
+                    title="Remove stage"
                   >
                     <X size={9} />
                   </button>
@@ -492,7 +492,7 @@ function CeremonyChecklist({ event }: { event: Event }) {
                       return (
                         <div key={task.id} className="flex items-center gap-2.5 group/task py-1.5 px-2 rounded-xl hover:bg-stone-50 transition-colors">
                           <button
-                            onClick={() => toggleSubCategoryTask(event.id, selected.id, sub.id, task.id)}
+                            onClick={() => toggleStageTask(event.id, selected.id, sub.id, task.id)}
                             className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all ${
                               task.completed ? 'border-emerald-500 bg-emerald-500' : 'border-stone-300 hover:border-brand-400'
                             }`}
@@ -507,7 +507,7 @@ function CeremonyChecklist({ event }: { event: Event }) {
                               onChange={e => setEditTaskLabel(e.target.value)}
                               onKeyDown={e => {
                                 if (e.key === 'Enter') {
-                                  updateSubCategoryTask(event.id, selected.id, sub.id, task.id, { label: editTaskLabel })
+                                  updateStageTask(event.id, selected.id, sub.id, task.id, { label: editTaskLabel })
                                   setEditingTaskId(null)
                                 }
                                 if (e.key === 'Escape') setEditingTaskId(null)
@@ -554,7 +554,7 @@ function CeremonyChecklist({ event }: { event: Event }) {
                               <button
                                 onClick={() => {
                                   if (editTaskDate) {
-                                    updateSubCategoryTask(event.id, selected.id, sub.id, task.id, { dueDate: editTaskDate })
+                                    updateStageTask(event.id, selected.id, sub.id, task.id, { dueDate: editTaskDate })
                                   }
                                   setEditingTaskDateId(null)
                                 }}
@@ -593,7 +593,7 @@ function CeremonyChecklist({ event }: { event: Event }) {
                               title="Rename"
                             ><Edit2 size={8} /></button>
                             <button
-                              onClick={() => deleteSubCategoryTask(event.id, selected.id, sub.id, task.id)}
+                              onClick={() => deleteStageTask(event.id, selected.id, sub.id, task.id)}
                               className="w-5 h-5 rounded-full bg-red-50 hover:bg-red-100 text-red-400 flex items-center justify-center"
                               title="Delete"
                             ><X size={8} /></button>
@@ -634,7 +634,7 @@ function CeremonyChecklist({ event }: { event: Event }) {
             )
           })}
 
-          {/* Add new sub-category */}
+          {/* Add new stage */}
           {showAddSub ? (
             <div className="flex items-center gap-2 bg-brand-50 ring-1 ring-brand-200 rounded-xl px-3 py-2">
               <input
@@ -666,7 +666,7 @@ function CeremonyChecklist({ event }: { event: Event }) {
               onClick={() => setShowAddSub(true)}
               className="flex items-center gap-1.5 text-xs text-stone-400 hover:text-brand-600 font-medium transition-colors py-1.5 pl-1"
             >
-              <Plus size={12} /> Add sub-category to {selected.name}
+              <Plus size={12} /> Add stage to {selected.name}
             </button>
           )}
         </div>
@@ -675,7 +675,7 @@ function CeremonyChecklist({ event }: { event: Event }) {
       {/* Task drill-down drawer */}
       {openTaskRef && (() => {
         const cer = ceremonies.find(c => c.id === openTaskRef.ceremonyId)
-        const drwSub = cer?.subCategories.find(s => s.id === openTaskRef.subId)
+        const drwSub = cer?.stages.find(s => s.id === openTaskRef.subId)
         const drwTask = drwSub?.tasks.find(t => t.id === openTaskRef.taskId)
         if (!cer || !drwSub || !drwTask) return null
         return (
@@ -871,7 +871,7 @@ function EventCard({ event }: { event: Event }) {
   const days = daysUntil(event.date)
   const progress = completionPercent(event.milestones)
   const ceremonies = event.ceremonies ?? []
-  const allTasks = ceremonies.flatMap(c => c.subCategories.flatMap(s => s.tasks))
+  const allTasks = ceremonies.flatMap(c => c.stages.flatMap(s => s.tasks))
   const tasksDone = allTasks.filter(t => t.completed).length
   const shared = event.concepts.filter(c => c.sharedWithClient !== false)
   const pendingApproval = shared.filter(c => c.status === 'pending').length
@@ -1165,8 +1165,8 @@ function CreateEventWizard({ open, onClose }: { open: boolean; onClose: () => vo
     handleClose()
   }
 
-  const totalTasks = ceremonies.reduce((sum, c) => sum + c.subCategories.reduce((s, sub) => s + sub.tasks.length, 0), 0)
-  const totalSubs  = ceremonies.reduce((sum, c) => sum + c.subCategories.length, 0)
+  const totalTasks = ceremonies.reduce((sum, c) => sum + c.stages.reduce((s, sub) => s + sub.tasks.length, 0), 0)
+  const totalSubs  = ceremonies.reduce((sum, c) => sum + c.stages.length, 0)
 
   return (
     <Modal open={open} onClose={handleClose} title="Create New Event" size="xl">
@@ -1334,7 +1334,7 @@ function CreateEventWizard({ open, onClose }: { open: boolean; onClose: () => vo
                           className="w-full text-sm font-semibold text-stone-800 bg-transparent border-b border-transparent hover:border-stone-200 focus:border-brand-400 focus:outline-none transition-colors"
                         />
                         <p className="text-[10px] text-stone-400 mt-0.5">
-                          {cer.subCategories.length} stages · {cer.subCategories.reduce((s, sub) => s + sub.tasks.length, 0)} tasks · {offsetLabel}
+                          {cer.stages.length} stages · {cer.stages.reduce((s, sub) => s + sub.tasks.length, 0)} tasks · {offsetLabel}
                         </p>
                       </div>
                       <input
@@ -1353,7 +1353,7 @@ function CreateEventWizard({ open, onClose }: { open: boolean; onClose: () => vo
                                     ...c,
                                     date: newDate,
                                     offsetDaysFromEvent: newOffset,
-                                    subCategories: c.subCategories.map(sub => ({
+                                    stages: c.stages.map(sub => ({
                                       ...sub,
                                       tasks: sub.tasks.map(t => ({
                                         ...t,
@@ -1386,7 +1386,7 @@ function CreateEventWizard({ open, onClose }: { open: boolean; onClose: () => vo
                     date: form.date,
                     offsetDaysFromEvent: 0,
                     notes: '',
-                    subCategories: [],
+                    stages: [],
                   }
                   setCeremonies(prev => [...prev, newCer])
                 }}
@@ -1410,7 +1410,7 @@ function CreateEventWizard({ open, onClose }: { open: boolean; onClose: () => vo
                       <span className="text-[10px] text-stone-400">{formatDate(cer.date)}</span>
                     </div>
                     <div className="flex flex-wrap gap-1.5">
-                      {cer.subCategories.map(sub => (
+                      {cer.stages.map(sub => (
                         <span key={sub.id} className="text-[11px] bg-white ring-1 ring-stone-200 px-2 py-1 rounded-lg text-stone-600 flex items-center gap-1">
                           <span>{sub.emoji}</span>
                           <span className="font-medium">{sub.name}</span>
@@ -1474,7 +1474,7 @@ function CreateEventWizard({ open, onClose }: { open: boolean; onClose: () => vo
                       <span className="text-[10px] text-stone-400">— {formatDate(cer.date)}</span>
                     </div>
                     <p className="text-[10px] text-stone-400 mt-1 ml-6">
-                      {cer.subCategories.map(s => `${s.emoji} ${s.name}`).join(' · ')}
+                      {cer.stages.map(s => `${s.emoji} ${s.name}`).join(' · ')}
                     </p>
                   </div>
                 ))}

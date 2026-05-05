@@ -168,10 +168,10 @@ export function TermsPage() {
             <p>
               For questions about these Terms, please contact
               <a
-                href="mailto:legal@thalia-events.com"
+                href="mailto:hello@thalia-events.com"
                 className="ml-1 text-plum-700 hover:underline"
               >
-                legal@thalia-events.com
+                hello@thalia-events.com
               </a>
               .
             </p>

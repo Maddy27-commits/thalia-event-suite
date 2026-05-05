@@ -251,6 +251,15 @@ export function VendorsPage() {
         </div>
       )}
 
+      {/* Sample-data notice — visible while any seed vendor (id v1..v30) is
+          still present. Reminds the planner the directory is starter content
+          to be replaced with their real vendors. */}
+      {vendors.some((v) => /^v(\d+)$/.test(v.id) && parseInt(v.id.slice(1)) <= 30) && (
+        <div className="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-2.5 text-xs text-amber-800 leading-relaxed">
+          <strong className="font-semibold">Sample directory.</strong> The 30 starter vendors are illustrative — names and contact details are fictional. Edit, delete, or replace them with your own contacts (or use Import CSV to bulk-load).
+        </div>
+      )}
+
       {/* Search */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 max-w-md">

@@ -895,6 +895,14 @@ function EventCard({ event }: { event: Event }) {
                 {categoryLabel}
               </span>
               <Badge variant={statusBadge[event.status]}>{event.status}</Badge>
+              {(event.id === 'e1' || event.id === 'e2') && (
+                <span
+                  className="text-[10px] bg-stone-100 text-stone-500 ring-1 ring-stone-200 px-2 py-0.5 rounded-full font-semibold"
+                  title="Sample event seeded for the demo. Edit or delete it freely."
+                >
+                  Sample
+                </span>
+              )}
               {ceremonies.length > 1 && (
                 <span className="text-[10px] bg-violet-50 text-violet-600 ring-1 ring-violet-200 px-2 py-0.5 rounded-full font-semibold">
                   {ceremonies.length} ceremonies

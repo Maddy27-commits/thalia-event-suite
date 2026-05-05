@@ -155,30 +155,6 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Social proof */}
-      <section className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 pb-20">
-        <div className="text-center mb-10">
-          <p className="text-[11px] font-bold tracking-[0.2em] uppercase text-plum-400 mb-2">In good company</p>
-          <h2 className="font-display text-2xl sm:text-3xl font-semibold leading-tight">
-            Loved by planners who hate spreadsheets.
-          </h2>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[
-            { quote: '"It replaced four spreadsheets, two WhatsApp groups and a stack of mood boards. My weekends are mine again."', name: 'Maya R.',   role: 'Wedding planner, Mumbai' },
-            { quote: '"The AI concept generator is uncanny — it actually nails the brief instead of giving me generic stock photos."', name: 'Tom L.',    role: 'Corporate event lead, London' },
-            { quote: '"My clients used to email me ten times a day. Now they sign in and self-serve. I sleep better."',                name: 'Aaliyah B.', role: 'Independent planner, Atlanta' },
-          ].map((t) => (
-            <div key={t.name} className="bg-white/[0.03] ring-1 ring-white/10 rounded-2xl p-6">
-              <p className="text-sm text-stone-200 leading-relaxed mb-4">{t.quote}</p>
-              <p className="text-sm font-semibold text-white">{t.name}</p>
-              <p className="text-xs text-stone-500">{t.role}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
       {/* FAQ */}
       <section className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 pb-20">
         <div className="text-center mb-10">

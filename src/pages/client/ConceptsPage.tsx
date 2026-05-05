@@ -60,7 +60,13 @@ export function ConceptsPage() {
 
   if (!event) return null
 
-  const sharedConcepts = event.concepts.filter(c => c.sharedWithClient !== false)
+  // Pending first, then revised, then approved/rejected — so the inbox of
+  // decisions you still need to make is always at the top.
+  const statusOrder: Record<ConceptStatus, number> = { pending: 0, revised: 1, approved: 2, rejected: 3 }
+  const sharedConcepts = event.concepts
+    .filter(c => c.sharedWithClient !== false)
+    .slice()
+    .sort((a, b) => (statusOrder[a.status] ?? 9) - (statusOrder[b.status] ?? 9))
 
   const handleAction = (concept: EventConcept, action: 'approve' | 'reject' | 'revise') => {
     setSelected(concept)
@@ -81,11 +87,11 @@ export function ConceptsPage() {
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-5 sm:space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-bold text-stone-900">Design Concepts</h1>
+        <h1 className="text-2xl font-bold text-stone-900">Concepts & Approvals</h1>
         <p className="text-stone-400 text-sm mt-0.5">
           {pendingCount > 0
-            ? `${pendingCount} concept${pendingCount !== 1 ? 's' : ''} waiting for your review`
-            : 'Review and approve your personalised event concepts.'}
+            ? `${pendingCount} concept${pendingCount !== 1 ? 's' : ''} waiting for your review — pending ones are highlighted first.`
+            : 'Review and approve your personalised event concepts. All caught up!'}
         </p>
       </div>
 

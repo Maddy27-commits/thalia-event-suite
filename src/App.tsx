@@ -20,7 +20,6 @@ import { AIGeneratorPage } from './pages/planner/AIGeneratorPage'
 // Client pages
 import { ClientDashboard } from './pages/client/ClientDashboard'
 import { ConceptsPage } from './pages/client/ConceptsPage'
-import { ApprovalsPage } from './pages/client/ApprovalsPage'
 import { ProgressPage } from './pages/client/ProgressPage'
 
 // Settings
@@ -212,14 +211,8 @@ export default function App() {
             </ProtectedClient>
           }
         />
-        <Route
-          path="/client/approvals"
-          element={
-            <ProtectedClient>
-              <AppShell><ApprovalsPage /></AppShell>
-            </ProtectedClient>
-          }
-        />
+        {/* Approvals merged into Concepts — keep redirect for any old links. */}
+        <Route path="/client/approvals" element={<Navigate to="/client/concepts" replace />} />
         <Route
           path="/client/progress"
           element={

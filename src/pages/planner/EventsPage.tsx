@@ -5,7 +5,7 @@ import {
   X, Circle, Sparkles, ListChecks, Store, Star, Phone, Mail,
   ArrowRight, ArrowLeft, Heart, Building2, Cake, GraduationCap,
   PartyPopper, Briefcase, Trophy, MicVocal, MessageSquare, Eye,
-  KeyRound, Copy,
+  KeyRound, Copy, CopyPlus,
 } from 'lucide-react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useStore, getDefaultCeremonies, offsetFor } from '../../store'
@@ -852,7 +852,7 @@ function ClientAccessCodePanel({ event }: { event: Event }) {
 }
 
 function EventCard({ event }: { event: Event }) {
-  const { updateEvent, deleteEvent, setActiveEvent, activeEventId, enterPreviewMode } = useStore()
+  const { updateEvent, deleteEvent, duplicateEvent, setActiveEvent, activeEventId, enterPreviewMode } = useStore()
   const navigate = useNavigate()
   const [expanded, setExpanded] = useState(activeEventId === event.id)
   const [activeTab, setActiveTab] = useState<'checklist' | 'timeline'>('checklist')
@@ -1024,6 +1024,15 @@ function EventCard({ event }: { event: Event }) {
                 <Eye size={11} />
                 Client view
               </button>
+
+              <button
+                onClick={() => {
+                  const newId = duplicateEvent(event.id)
+                  if (newId) setActiveEvent(newId)
+                }}
+                className="w-7 h-7 rounded-full bg-stone-50 hover:bg-brand-50 text-stone-400 hover:text-brand-600 flex items-center justify-center transition-colors"
+                title="Duplicate this event"
+              ><CopyPlus size={12} /></button>
 
               <button onClick={() => setDeleteConfirm(true)}
                 className="w-7 h-7 rounded-full bg-red-50 hover:bg-red-100 text-red-400 flex items-center justify-center transition-colors"

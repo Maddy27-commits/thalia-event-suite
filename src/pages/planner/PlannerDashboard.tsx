@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { CalendarDays, Store, Wand2, TrendingUp, CheckCircle2, AlertCircle, Bell, ArrowRight, Plus } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { CalendarDays, Store, Wand2, TrendingUp, CheckCircle2, AlertCircle, Bell, ArrowRight, Plus, Flame, Sparkles, Clock } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../../store'
 import { usePlannerEvents } from '../../hooks/usePlannerEvents'
@@ -17,6 +17,106 @@ const statusBadge: Record<string, 'default' | 'info' | 'success' | 'warning' | '
   confirmed: 'success',
   completed: 'success',
   cancelled: 'danger',
+}
+
+/**
+ * Today's actions widget — surfaces the planner's actual punch list:
+ *   • concepts awaiting client approval (you should nudge)
+ *   • milestones overdue (track the slip)
+ *   • milestones due in the next 7 days (heads-up)
+ * Capped at 6 items so it stays a "next thing to do" list, not an inbox.
+ */
+function TodaysActions({ events, onOpenEvent }: { events: Event[]; onOpenEvent: (id: string) => void }) {
+  const items = useMemo(() => {
+    const out: { kind: 'pending' | 'overdue' | 'soon'; label: string; sub: string; eventId: string; sortKey: number }[] = []
+    const now = Date.now()
+    const day = 1000 * 60 * 60 * 24
+
+    for (const e of events) {
+      if (e.status === 'cancelled' || e.status === 'completed') continue
+
+      // Pending concepts — high priority, planner should chase
+      const pending = e.concepts.filter((c) => c.status === 'pending').length
+      if (pending > 0) {
+        out.push({
+          kind: 'pending',
+          label: `${pending} concept${pending !== 1 ? 's' : ''} pending review`,
+          sub: e.name,
+          eventId: e.id,
+          sortKey: 0,
+        })
+      }
+
+      // Overdue milestones — top priority
+      for (const m of e.milestones) {
+        if (m.completed) continue
+        const due = new Date(m.dueDate).getTime()
+        const daysFrom = Math.round((due - now) / day)
+        if (daysFrom < 0) {
+          out.push({
+            kind: 'overdue',
+            label: m.label,
+            sub: `${e.name} · ${Math.abs(daysFrom)}d late`,
+            eventId: e.id,
+            sortKey: -100 - Math.abs(daysFrom),
+          })
+        } else if (daysFrom <= 7) {
+          out.push({
+            kind: 'soon',
+            label: m.label,
+            sub: `${e.name} · ${daysFrom === 0 ? 'today' : `due in ${daysFrom}d`}`,
+            eventId: e.id,
+            sortKey: 50 + daysFrom,
+          })
+        }
+      }
+    }
+
+    return out.sort((a, b) => a.sortKey - b.sortKey).slice(0, 6)
+  }, [events])
+
+  if (items.length === 0) return null
+
+  const meta = {
+    pending: { Icon: Sparkles,      colour: 'text-amber-600 bg-amber-50 ring-amber-200' },
+    overdue: { Icon: Flame,         colour: 'text-rose-600 bg-rose-50 ring-rose-200'    },
+    soon:    { Icon: Clock,         colour: 'text-sky-600 bg-sky-50 ring-sky-200'       },
+  }
+
+  return (
+    <section className="animate-fade-in delay-150">
+      <div className="flex items-baseline justify-between mb-3 sm:mb-4">
+        <div>
+          <p className="eyebrow text-rose-400">Today</p>
+          <h2 className="font-display text-xl sm:text-2xl font-semibold text-stone-900 leading-tight">
+            What needs you now
+          </h2>
+        </div>
+        <span className="text-xs text-stone-400">{items.length} item{items.length !== 1 ? 's' : ''}</span>
+      </div>
+      <div className="rounded-2xl bg-white ring-1 ring-stone-100 shadow-card divide-y divide-stone-50">
+        {items.map((item, i) => {
+          const m = meta[item.kind]
+          return (
+            <button
+              key={`${item.eventId}-${i}`}
+              onClick={() => onOpenEvent(item.eventId)}
+              className="w-full flex items-center gap-3 px-4 sm:px-5 py-3 hover:bg-stone-50/60 transition-colors text-left"
+            >
+              <div className={`w-8 h-8 rounded-xl ring-1 flex items-center justify-center shrink-0 ${m.colour}`}>
+                <m.Icon size={14} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-stone-800 truncate">{item.label}</p>
+                <p className="text-xs text-stone-400 truncate">{item.sub}</p>
+              </div>
+              <ArrowRight size={13} className="text-stone-300 shrink-0" />
+            </button>
+          )
+        })}
+      </div>
+    </section>
+  )
 }
 
 function timeGreeting(): { text: string; emoji: string } {
@@ -183,6 +283,9 @@ export function PlannerDashboard() {
           </button>
         ))}
       </div>
+
+      {/* ── Today's actions — punch list of what's actually urgent ── */}
+      <TodaysActions events={events} onOpenEvent={(id) => { setActiveEvent(id); navigate('/planner/events') }} />
 
       {/* ── Upcoming Events ── */}
       <section className="animate-fade-in delay-300">

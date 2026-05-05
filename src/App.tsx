@@ -26,6 +26,10 @@ import { ProgressPage } from './pages/client/ProgressPage'
 // Settings
 import { SettingsPage } from './pages/settings/SettingsPage'
 
+// Legal
+import { PrivacyPage } from './pages/legal/PrivacyPage'
+import { TermsPage } from './pages/legal/TermsPage'
+
 // ── Preview mode banner ───────────────────────────────────────────────────────
 function PreviewBanner() {
   const { session, exitPreviewMode, events } = useStore()
@@ -139,6 +143,8 @@ export default function App() {
         <Route path="/welcome"        element={<LandingPage />} />
         <Route path="/auth/planner"   element={<PlannerAuthPage />} />
         <Route path="/auth/client"    element={<ClientAuthPage />} />
+        <Route path="/privacy"        element={<PrivacyPage />} />
+        <Route path="/terms"          element={<TermsPage />} />
 
         {/* Protected app routes (with shell) */}
         <Route

@@ -1151,10 +1151,70 @@ export const useStore = create<AppState>()(
           activeEventId: s.activeEventId === id ? null : s.activeEventId,
         })),
 
+      /**
+       * Duplicate an event with a fresh id, "(copy)" suffix on the name, a
+       * new access code, and reset client decisions. Returns the new id.
+       */
+      duplicateEvent: (id) => {
+        const original = get().events.find((e) => e.id === id)
+        if (!original) return null
+        const now = new Date().toISOString()
+        const copy: Event = {
+          ...original,
+          id: uid(),
+          name: `${original.name} (copy)`,
+          accessCode: generateAccessCode(),
+          plannerEmail: get().session?.email ?? original.plannerEmail,
+          // Reset concept decisions — copying a brief shouldn't carry approvals
+          concepts: original.concepts.map((c) => ({
+            ...c,
+            id: uid(),
+            status: 'pending',
+            clientComment: '',
+            sharedWithClient: false,
+          })),
+          // Reset milestone completion flags
+          milestones: original.milestones.map((m) => ({ ...m, id: uid(), completed: false })),
+          // Reset task completion + clear messages on copy
+          ceremonies: (original.ceremonies ?? []).map((cer) => ({
+            ...cer,
+            id: uid(),
+            subCategories: cer.subCategories.map((sub) => ({
+              ...sub,
+              id: uid(),
+              tasks: sub.tasks.map((t) => ({
+                ...t, id: uid(), completed: false, messages: [], options: [], currentPhase: 'briefing',
+              })),
+            })),
+          })),
+          createdAt: now,
+          updatedAt: now,
+        }
+        set((s) => ({ events: [...s.events, copy] }))
+        return copy.id
+      },
+
       addVendor: (vendor) => set((s) => ({ vendors: [...s.vendors, vendor] })),
       updateVendor: (id, updates) =>
         set((s) => ({ vendors: s.vendors.map((v) => (v.id === id ? { ...v, ...updates } : v)) })),
       deleteVendor: (id) => set((s) => ({ vendors: s.vendors.filter((v) => v.id !== id) })),
+      toggleVendorFavorite: (id) =>
+        set((s) => ({
+          vendors: s.vendors.map((v) => (v.id === id ? { ...v, favorite: !v.favorite } : v)),
+        })),
+
+      /**
+       * Bulk-import vendors (e.g. from a CSV upload). Skips entries whose name
+       * already exists (case-insensitive) so re-importing is safe. Returns
+       * the count of newly added vendors.
+       */
+      importVendors: (newOnes) => {
+        const existing = new Set(get().vendors.map((v) => v.name.toLowerCase()))
+        const toAdd = newOnes.filter((v) => v.name && !existing.has(v.name.toLowerCase()))
+        if (toAdd.length === 0) return 0
+        set((s) => ({ vendors: [...s.vendors, ...toAdd] }))
+        return toAdd.length
+      },
 
       addConcept: (eventId, concept) =>
         set((s) => ({

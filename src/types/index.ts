@@ -75,6 +75,10 @@ export interface Vendor {
   region?: VendorRegion
   /** Optional — event types this vendor specialises in. */
   specialties?: VendorSpecialty[]
+  /** Star a vendor to pin it to the top of the directory. */
+  favorite?: boolean
+  /** Optional — URL to a hero image (planner pastes a link; no upload yet). */
+  imageUrl?: string
   createdAt: string
 }
 
@@ -291,6 +295,19 @@ export interface ConceptGeneratorInput {
 }
 
 // ─── User Profiles ────────────────────────────────────────────────────────────
+/** Planner's email notification preferences. None of these wire to real
+ *  delivery yet — the UI lets the planner state their intent. */
+export interface NotificationPrefs {
+  /** When a client approves / declines / requests changes on a concept. */
+  conceptDecisions: boolean
+  /** When a client posts a new in-app chat message on any task. */
+  newClientMessages: boolean
+  /** Weekly digest of upcoming milestones. */
+  weeklyDigest: boolean
+  /** When a milestone goes overdue. */
+  overdueMilestones: boolean
+}
+
 export interface PlannerProfile {
   name: string
   businessName: string
@@ -301,6 +318,9 @@ export interface PlannerProfile {
   emailjsServiceId: string
   emailjsTemplateId: string
   emailjsPublicKey: string
+  /** Soft segmentation — used to bias event templates / AI prompts. */
+  businessFocus?: string
+  notificationPrefs?: NotificationPrefs
 }
 
 export interface ClientProfile {
@@ -345,11 +365,14 @@ export interface AppState {
   addEvent: (event: Event) => void
   updateEvent: (id: string, updates: Partial<Event>) => void
   deleteEvent: (id: string) => void
+  duplicateEvent: (id: string) => string | null
 
   // Vendors
   addVendor: (vendor: Vendor) => void
   updateVendor: (id: string, updates: Partial<Vendor>) => void
   deleteVendor: (id: string) => void
+  toggleVendorFavorite: (id: string) => void
+  importVendors: (vendors: Vendor[]) => number
 
   // Concepts
   addConcept: (eventId: string, concept: EventConcept) => void

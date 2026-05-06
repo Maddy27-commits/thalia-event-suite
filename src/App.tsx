@@ -9,6 +9,7 @@ import { Sidebar } from './components/layout/Sidebar'
 import { LandingPage } from './pages/auth/LandingPage'
 import { PlannerAuthPage } from './pages/auth/PlannerAuthPage'
 import { ClientAuthPage } from './pages/auth/ClientAuthPage'
+import { VendorAuthPage } from './pages/auth/VendorAuthPage'
 
 // Planner pages
 import { PlannerDashboard } from './pages/planner/PlannerDashboard'
@@ -16,6 +17,9 @@ import { EventsPage } from './pages/planner/EventsPage'
 import { VendorsPage } from './pages/planner/VendorsPage'
 import { ClientsPage } from './pages/planner/ClientsPage'
 import { AIGeneratorPage } from './pages/planner/AIGeneratorPage'
+
+// Vendor pages
+import { VendorPortalPage } from './pages/vendor/VendorPortalPage'
 
 // Client pages
 import { ClientDashboard } from './pages/client/ClientDashboard'
@@ -122,6 +126,14 @@ function ProtectedClient({ children }: { children: React.ReactNode }) {
   const { session } = useStore()
   if (!session) return <Navigate to="/" replace />
   if (session.role === 'planner' && !session.isPlannerPreview) return <Navigate to="/planner" replace />
+  if (session.role === 'vendor') return <Navigate to="/vendor" replace />
+  return <>{children}</>
+}
+
+function ProtectedVendor({ children }: { children: React.ReactNode }) {
+  const { session } = useStore()
+  if (!session) return <Navigate to="/" replace />
+  if (session.role !== 'vendor') return <Navigate to="/" replace />
   return <>{children}</>
 }
 
@@ -130,6 +142,7 @@ function RootRedirect() {
   const { session } = useStore()
   if (!session) return <Navigate to="/welcome" replace />
   if (session.role === 'planner' && !session.isPlannerPreview) return <Navigate to="/planner" replace />
+  if (session.role === 'vendor') return <Navigate to="/vendor" replace />
   return <Navigate to="/client" replace />
 }
 
@@ -142,6 +155,7 @@ export default function App() {
         <Route path="/welcome"        element={<LandingPage />} />
         <Route path="/auth/planner"   element={<PlannerAuthPage />} />
         <Route path="/auth/client"    element={<ClientAuthPage />} />
+        <Route path="/auth/vendor"    element={<VendorAuthPage />} />
         <Route path="/privacy"        element={<PrivacyPage />} />
         <Route path="/terms"          element={<TermsPage />} />
 
@@ -213,6 +227,16 @@ export default function App() {
         />
         {/* Approvals merged into Concepts — keep redirect for any old links. */}
         <Route path="/client/approvals" element={<Navigate to="/client/concepts" replace />} />
+
+        {/* Vendor portal */}
+        <Route
+          path="/vendor"
+          element={
+            <ProtectedVendor>
+              <AppShell><VendorPortalPage /></AppShell>
+            </ProtectedVendor>
+          }
+        />
         <Route
           path="/client/progress"
           element={

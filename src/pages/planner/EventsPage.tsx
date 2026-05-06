@@ -17,7 +17,7 @@ import { Input, Select } from '../../components/ui/Input'
 import { SendReminderModal } from '../../components/planner/SendReminderModal'
 import { TaskDrawer } from '../../components/planner/TaskDrawer'
 import { formatCurrency, formatDate, daysUntil, generateId, completionPercent, offsetDate } from '../../lib/utils'
-import type { Event, EventType, EventStatus, EventMilestone, EventCeremony, EventStage, StageTask } from '../../types'
+import type { Event, EventType, EventStatus, EventMilestone, EventCeremony, EventStage, StageTask, Stakeholder } from '../../types'
 
 const EVENT_TYPES: { value: EventType; label: string; icon: React.ElementType; description: string; gradient: string }[] = [
   { value: 'wedding',     label: 'Wedding',     icon: Heart,         description: 'Multi-day with ceremonies, sangeet, reception', gradient: 'from-rose-400 to-pink-600' },
@@ -800,53 +800,370 @@ function VendorAssignment({ event }: { event: Event }) {
 }
 
 // ─── Single event card ─────────────────────────────────────────────────────────
-// ─── Client Access Code Panel ────────────────────────────────────────────────
-function ClientAccessCodePanel({ event }: { event: Event }) {
-  const [copied, setCopied] = useState<'code' | 'both' | null>(null)
-  const code = event.accessCode ?? '——————'
-  const hasCode = !!event.accessCode
+// ─── Stakeholder Panel ───────────────────────────────────────────────────────
+// Multi-client management. Replaces the single-client access code panel.
+// Displays the list of stakeholders, lets the planner add new ones, edit
+// roles, and request removal. Removal goes through a pending-action queue
+// that requires another organiser's (or the planner's) sign-off — surfaced
+// as banners further below.
+function StakeholderPanel({ event }: { event: Event }) {
+  const { addStakeholder, updateStakeholder, requestRemoveStakeholder, approveStakeholderRemoval, declinePendingAction, session } = useStore()
+  const stakeholders = event.stakeholders ?? []
+  const activeStakeholders = stakeholders.filter((s) => !s.removedAt)
+  const pendingRemovals = (event.pendingActions ?? []).filter(
+    (a) => a.kind === 'remove-stakeholder' && !a.approvedAt && !a.declinedAt
+  )
+  const organiserCount = activeStakeholders.filter((s) => s.role === 'organiser').length
 
-  const copy = async (text: string, kind: 'code' | 'both') => {
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [showAdd, setShowAdd] = useState(false)
+  const [draft, setDraft] = useState({ name: '', email: '', role: 'organiser' as Stakeholder['role'] })
+
+  const copyAccessDetails = async (sh: Stakeholder) => {
+    const text = `Hi ${sh.name}, here are your sign-in details for "${event.name}" on Thalia:\n\n  Email:       ${sh.email}\n  Access code: ${sh.accessCode}\n\nSign in at https://thalia-event-suite.pages.dev/auth/client`
     try {
       await navigator.clipboard.writeText(text)
-      setCopied(kind)
-      setTimeout(() => setCopied(null), 1800)
+      setCopiedId(sh.id)
+      setTimeout(() => setCopiedId(null), 1800)
     } catch { /* clipboard blocked — silently ignore */ }
   }
 
+  const handleAdd = () => {
+    if (!draft.name.trim() || !draft.email.trim()) return
+    const sh: Stakeholder = {
+      id: generateId(),
+      name: draft.name.trim(),
+      email: draft.email.trim().toLowerCase(),
+      accessCode: String(Math.floor(Math.random() * 1_000_000)).padStart(6, '0'),
+      role: draft.role,
+      addedAt: new Date().toISOString(),
+    }
+    addStakeholder(event.id, sh)
+    setDraft({ name: '', email: '', role: 'organiser' })
+    setShowAdd(false)
+  }
+
+  const handleRequestRemove = (sh: Stakeholder) => {
+    if (sh.role === 'organiser' && organiserCount === 1) {
+      alert(`${sh.name} is the only organiser. Promote another stakeholder to Organiser first.`)
+      return
+    }
+    const requesterEmail = session?.email ?? 'planner'
+    if (!confirm(`Request to remove ${sh.name}? Another organiser (or you, as the planner) must approve before access is revoked.`)) return
+    requestRemoveStakeholder(event.id, sh.id, requesterEmail)
+  }
+
   return (
-    <div className="px-5 py-3 bg-gradient-to-r from-sage-50/60 to-emerald-50/40 border-b border-stone-100 flex items-center gap-3 flex-wrap">
-      <div className="w-7 h-7 rounded-lg bg-sage-100 flex items-center justify-center shrink-0">
-        <KeyRound size={13} className="text-sage-700" />
-      </div>
-      <div className="flex-1 min-w-[200px]">
-        <p className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider">Client portal code</p>
-        <div className="flex items-center gap-2 mt-0.5">
-          <span className="font-mono text-base font-bold text-stone-900 tracking-[0.25em]">{code}</span>
-          {!hasCode && <span className="text-[10px] text-stone-400">(generates on next save)</span>}
+    <div className="px-5 py-3 bg-gradient-to-r from-sage-50/60 to-emerald-50/40 border-b border-stone-100">
+      <div className="flex items-center gap-2 mb-3">
+        <div className="w-7 h-7 rounded-lg bg-sage-100 flex items-center justify-center shrink-0">
+          <Users size={13} className="text-sage-700" />
         </div>
-        <p className="text-[10px] text-stone-400 mt-0.5">Share with {event.clientName || 'your client'} so they can sign in at the client portal.</p>
-      </div>
-      <div className="flex items-center gap-1.5">
+        <div className="flex-1 min-w-0">
+          <p className="text-[11px] font-semibold text-stone-500 uppercase tracking-wider">Client stakeholders</p>
+          <p className="text-[10px] text-stone-400">
+            {activeStakeholders.length} active · {organiserCount} organiser{organiserCount !== 1 ? 's' : ''} · roles drive who can approve and see what
+          </p>
+        </div>
         <button
-          onClick={() => copy(code, 'code')}
-          disabled={!hasCode}
-          className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-full bg-white text-sage-700 ring-1 ring-sage-200 hover:bg-sage-50 disabled:opacity-40 transition-all"
-          title="Copy code"
+          onClick={() => setShowAdd((v) => !v)}
+          className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-full bg-sage-600 text-white hover:bg-sage-700 transition-all"
         >
-          {copied === 'code' ? <Check size={11} /> : <Copy size={11} />}
-          {copied === 'code' ? 'Copied' : 'Code'}
-        </button>
-        <button
-          onClick={() => copy(`Email: ${event.clientEmail}\nAccess code: ${code}`, 'both')}
-          disabled={!hasCode || !event.clientEmail}
-          className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-full bg-sage-600 text-white hover:bg-sage-700 disabled:opacity-40 transition-all"
-          title="Copy email + code together"
-        >
-          {copied === 'both' ? <Check size={11} /> : <Copy size={11} />}
-          {copied === 'both' ? 'Copied' : 'Email + code'}
+          <Plus size={11} /> Add
         </button>
       </div>
+
+      {/* Pending removal banners — planner can approve their own as the workspace authority */}
+      {pendingRemovals.map((action) => {
+        const target = stakeholders.find((s) => s.id === action.payload.stakeholderId)
+        if (!target) return null
+        return (
+          <div key={action.id} className="mb-2 px-3 py-2 rounded-xl bg-amber-50 ring-1 ring-amber-200 flex items-center gap-2">
+            <AlertCircle size={13} className="text-amber-600 shrink-0" />
+            <p className="flex-1 text-[11px] text-amber-800">
+              Removal requested for <strong>{target.name}</strong> by <strong>{action.requestedBy}</strong>.
+            </p>
+            <button
+              onClick={() => approveStakeholderRemoval(event.id, action.id, session?.email ?? 'planner')}
+              className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-emerald-600 text-white hover:bg-emerald-700"
+            >
+              Approve
+            </button>
+            <button
+              onClick={() => declinePendingAction(event.id, action.id)}
+              className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-white text-stone-600 ring-1 ring-stone-200 hover:bg-stone-50"
+            >
+              Decline
+            </button>
+          </div>
+        )
+      })}
+
+      {/* Stakeholder list */}
+      <div className="space-y-1.5">
+        {activeStakeholders.length === 0 && (
+          <p className="text-[11px] text-stone-400 italic px-1 py-2">No active stakeholders. Add at least one organiser to enable client portal access.</p>
+        )}
+        {activeStakeholders.map((sh) => {
+          const hasPending = pendingRemovals.some((a) => a.payload.stakeholderId === sh.id)
+          return (
+            <div key={sh.id} className={`flex items-center gap-3 bg-white ring-1 ring-stone-100 rounded-xl px-3 py-2 group ${hasPending ? 'opacity-60' : ''}`}>
+              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-brand-200 to-brand-400 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
+                {sh.name.split(/\s+/).slice(0, 2).map((p) => p[0]?.toUpperCase()).join('')}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <p className="text-sm font-semibold text-stone-800 truncate">{sh.name}</p>
+                  <select
+                    value={sh.role}
+                    onChange={(e) => updateStakeholder(event.id, sh.id, { role: e.target.value as Stakeholder['role'] })}
+                    className="text-[10px] font-semibold border border-stone-200 rounded-md px-1.5 py-0.5 bg-stone-50 focus:outline-none focus:ring-1 focus:ring-sage-400"
+                  >
+                    <option value="organiser">Organiser</option>
+                    <option value="contributor">Contributor</option>
+                    <option value="viewer">Viewer</option>
+                  </select>
+                </div>
+                <p className="text-[10px] text-stone-400 truncate">{sh.email} · code <span className="font-mono">{sh.accessCode}</span></p>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  onClick={() => copyAccessDetails(sh)}
+                  className="text-[10px] font-semibold px-2 py-1 rounded-md bg-sage-50 text-sage-700 hover:bg-sage-100 ring-1 ring-sage-200 flex items-center gap-1"
+                  title="Copy a one-paste sign-in message"
+                >
+                  {copiedId === sh.id ? <Check size={10} /> : <Copy size={10} />}
+                  {copiedId === sh.id ? 'Copied' : 'Copy access'}
+                </button>
+                <button
+                  onClick={() => handleRequestRemove(sh)}
+                  disabled={hasPending}
+                  className="w-6 h-6 rounded-full bg-red-50 hover:bg-red-100 text-red-400 flex items-center justify-center disabled:opacity-30 transition-colors"
+                  title="Request removal (needs another organiser to approve)"
+                >
+                  <Trash2 size={10} />
+                </button>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Add stakeholder form */}
+      {showAdd && (
+        <div className="mt-3 p-3 rounded-xl bg-white ring-1 ring-sage-200 space-y-2">
+          <input
+            placeholder="Name"
+            value={draft.name}
+            onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
+            className="w-full text-sm border border-stone-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-sage-400"
+            autoFocus
+          />
+          <input
+            placeholder="Email"
+            type="email"
+            value={draft.email}
+            onChange={(e) => setDraft((d) => ({ ...d, email: e.target.value }))}
+            className="w-full text-sm border border-stone-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-sage-400"
+          />
+          <div className="flex items-center gap-2">
+            <select
+              value={draft.role}
+              onChange={(e) => setDraft((d) => ({ ...d, role: e.target.value as Stakeholder['role'] }))}
+              className="flex-1 text-sm border border-stone-200 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-sage-400"
+            >
+              <option value="organiser">Organiser (can approve, see everything)</option>
+              <option value="contributor">Contributor (chat + view, no approve)</option>
+              <option value="viewer">Viewer (read-only)</option>
+            </select>
+            <button
+              onClick={handleAdd}
+              disabled={!draft.name.trim() || !draft.email.trim()}
+              className="text-xs font-semibold text-white bg-sage-600 hover:bg-sage-700 disabled:opacity-40 px-4 py-1.5 rounded-lg"
+            >
+              Add
+            </button>
+            <button
+              onClick={() => { setShowAdd(false); setDraft({ name: '', email: '', role: 'organiser' }) }}
+              className="text-xs font-semibold text-stone-500 hover:bg-stone-100 px-3 py-1.5 rounded-lg"
+            >
+              Cancel
+            </button>
+          </div>
+          <p className="text-[10px] text-stone-400 leading-relaxed">
+            New stakeholders get a unique 6-digit access code. Use the Copy access button to send them everything they need to sign in.
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Vendor Chat Panel ───────────────────────────────────────────────────────
+// Event-level chat with assigned vendors. Each vendor in event.vendorIds gets
+// their own thread; vendors not assigned to the event are invisible here, so
+// only "selected" vendors can join the conversation.
+function VendorChatPanel({ event }: { event: Event }) {
+  const { vendors, addVendorMessage, deleteVendorMessage } = useStore()
+  const [selectedVendorId, setSelectedVendorId] = useState<string | null>(null)
+  const [draft, setDraft] = useState('')
+  const [draftAuthor, setDraftAuthor] = useState<'planner' | 'vendor'>('vendor')
+  const [expanded, setExpanded] = useState(false)
+
+  // Only vendors assigned to this event can participate in the chat.
+  const assignedVendors = vendors.filter((v) => event.vendorIds.includes(v.id))
+  const activeVendorId = selectedVendorId ?? assignedVendors[0]?.id ?? null
+  const activeVendor   = assignedVendors.find((v) => v.id === activeVendorId)
+  const messages = (event.vendorMessages ?? [])
+    .filter((m) => m.vendorId === activeVendorId)
+    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+
+  const handleSend = () => {
+    const content = draft.trim()
+    if (!content || !activeVendorId) return
+    addVendorMessage(event.id, {
+      id: generateId(),
+      vendorId: activeVendorId,
+      author: draftAuthor,
+      content,
+      timestamp: new Date().toISOString(),
+    })
+    setDraft('')
+  }
+
+  return (
+    <div className="px-5 pb-4 border-t border-stone-100">
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        className="w-full flex items-center gap-3 mt-4 text-left group"
+      >
+        <div className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center shrink-0">
+          <MessageSquare size={13} className="text-amber-600" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-semibold text-stone-700 group-hover:text-stone-900 transition-colors">
+            Vendor coordination
+          </p>
+          <p className="text-[10px] text-stone-400">
+            {assignedVendors.length === 0
+              ? 'Assign vendors above to start a chat'
+              : `${assignedVendors.length} vendor${assignedVendors.length !== 1 ? 's' : ''} can join · ${event.vendorMessages?.length ?? 0} message${(event.vendorMessages?.length ?? 0) !== 1 ? 's' : ''}`}
+          </p>
+        </div>
+        <ChevronDown size={14} className={`text-stone-300 transition-transform shrink-0 ${expanded ? 'rotate-180' : ''}`} />
+      </button>
+
+      {expanded && (
+        <div className="mt-3 rounded-2xl bg-stone-50 ring-1 ring-stone-100 overflow-hidden">
+          {assignedVendors.length === 0 ? (
+            <div className="p-5 text-center">
+              <p className="text-xs text-stone-500 leading-relaxed">
+                No vendors assigned yet. Use the Vendor assignment panel above to add vendors — only assigned vendors can join this chat.
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* Vendor tab strip — restricted to event.vendorIds */}
+              <div className="flex gap-1 overflow-x-auto px-3 pt-3 pb-2 scrollbar-hide border-b border-stone-100 bg-white">
+                {assignedVendors.map((v) => (
+                  <button
+                    key={v.id}
+                    onClick={() => setSelectedVendorId(v.id)}
+                    className={`text-[11px] font-semibold whitespace-nowrap px-3 py-1.5 rounded-full transition-all ${
+                      v.id === activeVendorId
+                        ? 'bg-amber-500 text-white shadow-sm'
+                        : 'text-stone-500 bg-stone-50 hover:bg-stone-100 ring-1 ring-stone-200'
+                    }`}
+                  >
+                    {v.name}
+                  </button>
+                ))}
+              </div>
+
+              {/* Active vendor's thread */}
+              <div className="px-4 py-3 max-h-80 overflow-y-auto space-y-2.5 bg-white">
+                {messages.length === 0 ? (
+                  <p className="text-xs text-stone-400 italic text-center py-4">
+                    No messages with {activeVendor?.name ?? 'this vendor'} yet. Share your finalised concepts and brief to start iterating.
+                  </p>
+                ) : (
+                  messages.map((m) => (
+                    <div key={m.id} className={`flex gap-2 group ${m.author === 'planner' ? 'flex-row-reverse' : ''}`}>
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
+                        m.author === 'planner' ? 'bg-brand-100 text-brand-700' : 'bg-amber-100 text-amber-700'
+                      }`}>
+                        {m.author === 'planner' ? 'You' : (activeVendor?.name ?? 'V').slice(0, 2).toUpperCase()}
+                      </div>
+                      <div className={`flex-1 min-w-0 ${m.author === 'planner' ? 'flex flex-col items-end' : ''}`}>
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="text-[10px] font-semibold text-stone-600">
+                            {m.author === 'planner' ? 'You' : (activeVendor?.name ?? 'Vendor')}
+                          </span>
+                          <span className="text-[10px] text-stone-300">{new Date(m.timestamp).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
+                          <button
+                            onClick={() => deleteVendorMessage(event.id, m.id)}
+                            className="text-stone-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="Delete message"
+                          >
+                            <X size={10} />
+                          </button>
+                        </div>
+                        <div className={`rounded-2xl px-3.5 py-2 text-sm leading-relaxed max-w-[88%] whitespace-pre-wrap break-words ${
+                          m.author === 'planner'
+                            ? 'bg-brand-500 text-white rounded-tr-sm'
+                            : 'bg-amber-50 text-stone-800 rounded-tl-sm ring-1 ring-amber-100'
+                        }`}>
+                          {m.content}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Composer */}
+              <div className="border-t border-stone-100 p-3 bg-white">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-[10px] text-stone-400 font-semibold uppercase tracking-widest">From:</span>
+                  <select
+                    value={draftAuthor}
+                    onChange={(e) => setDraftAuthor(e.target.value as 'planner' | 'vendor')}
+                    className="text-xs border border-stone-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 font-medium text-stone-700"
+                  >
+                    <option value="planner">You (planner)</option>
+                    <option value="vendor">{activeVendor?.name ?? 'Vendor'}</option>
+                  </select>
+                </div>
+                <div className="flex gap-2 items-end">
+                  <textarea
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                        e.preventDefault()
+                        handleSend()
+                      }
+                    }}
+                    placeholder={draftAuthor === 'planner'
+                      ? `Share concepts, briefs, or asks with ${activeVendor?.name ?? 'this vendor'}…`
+                      : `Log a reply from ${activeVendor?.name ?? 'this vendor'}…`}
+                    rows={2}
+                    className="flex-1 text-sm border border-stone-200 rounded-2xl px-3.5 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none bg-stone-50"
+                  />
+                  <button
+                    onClick={handleSend}
+                    disabled={!draft.trim()}
+                    className="flex items-center justify-center gap-1 text-xs font-semibold px-3 py-2.5 rounded-xl bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-40 transition-all"
+                    title="Send (⌘↵)"
+                  >
+                    Send
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -948,7 +1265,7 @@ function EventCard({ event }: { event: Event }) {
 
         {expanded && (
           <div className="border-t border-stone-100">
-            <ClientAccessCodePanel event={event} />
+            <StakeholderPanel event={event} />
             <div className="flex items-center gap-1 px-5 pt-3 pb-0">
               {(['checklist', 'timeline'] as const).map(tab => (
                 <button key={tab}
@@ -968,6 +1285,8 @@ function EventCard({ event }: { event: Event }) {
             }
 
             <VendorAssignment event={event} />
+
+            <VendorChatPanel event={event} />
 
             {event.concepts.length > 0 && (
               <div className="px-5 pb-4 border-t border-stone-100">

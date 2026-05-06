@@ -32,12 +32,18 @@ const clientNav = [
   { to: '/client/settings',   label: 'Settings',           icon: Settings               },
 ]
 
+// Vendor portal nav — single-page for now; expansion is easy.
+const vendorNav = [
+  { to: '/vendor',            label: 'My Events',          icon: Store,       end: true },
+]
+
 export function Sidebar({ onClose }: SidebarProps) {
   const { role, activeEventId, setActiveEvent, logout, session } = useStore()
   const plannerEvents = usePlannerEvents()
   const { event: clientEvent } = useClientEvent()
   const isPlanner = role === 'planner'
-  const nav = isPlanner ? plannerNav : clientNav
+  const isVendor  = role === 'vendor'
+  const nav = isPlanner ? plannerNav : isVendor ? vendorNav : clientNav
   const navigate = useNavigate()
   const [showAllEvents, setShowAllEvents] = useState(false)
   const visibleEvents = showAllEvents ? plannerEvents : plannerEvents.slice(0, 4)
@@ -84,7 +90,7 @@ export function Sidebar({ onClose }: SidebarProps) {
               'text-[9px] mt-1 font-semibold tracking-[0.15em] uppercase',
               isPlanner ? 'text-brand-400/60' : 'text-stone-400'
             )}>
-              {isPlanner ? 'Planner Suite' : 'Client Portal'}
+              {isPlanner ? 'Planner Suite' : isVendor ? 'Vendor Portal' : 'Client Portal'}
             </p>
           </div>
         </div>

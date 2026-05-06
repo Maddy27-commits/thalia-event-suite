@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Mail, Copy, Check, AlertCircle } from 'lucide-react'
+import { Mail, Copy, Check, AlertCircle, Bell } from 'lucide-react'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 import { Textarea } from '../ui/Input'
@@ -38,9 +38,32 @@ function buildEmailBody(event: Event): string {
 }
 
 export function SendReminderModal({ open, onClose, event }: Props) {
-  const { events } = useStore()
+  const { events, addNotification } = useStore()
   const [copied, setCopied]     = useState(false)
   const [emailBody, setEmailBody] = useState(() => buildEmailBody(event))
+  const [portalSent, setPortalSent] = useState(false)
+
+  /**
+   * Drop a notification into the client's bell. Independent of the email
+   * channel so the planner can do "portal only", "email only", or both.
+   * Same fire-and-forget vibe as the mailto link — no async waiting.
+   */
+  const sendPortalReminder = () => {
+    const pendingCount = (events.find((e) => e.id === event.id) ?? event).concepts.filter((c) => c.status === 'pending').length
+    addNotification({
+      id: `n_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      recipientEmail: event.clientEmail,
+      eventId: event.id,
+      kind: 'concept-reminder',
+      title: `${pendingCount} concept${pendingCount !== 1 ? 's' : ''} need your review`,
+      body: `Your planner is waiting on your feedback for ${event.name}. Tap to open the concepts page.`,
+      link: '/client/concepts',
+      read: false,
+      createdAt: new Date().toISOString(),
+    })
+    setPortalSent(true)
+    setTimeout(() => setPortalSent(false), 2500)
+  }
 
   // Always use the live event so nothing is stale
   const liveEvent   = events.find((e) => e.id === event.id) ?? event
@@ -146,22 +169,23 @@ export function SendReminderModal({ open, onClose, event }: Props) {
           </p>
         </div>
 
-        {/* Actions */}
-        <div className="flex gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            icon={copied ? <Check size={14} /> : <Copy size={14} />}
-            onClick={() => copyText(emailBody)}
+        {/* Two-channel actions: portal notification (always works) + email (when client has an address) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <button
+            onClick={sendPortalReminder}
+            className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold text-white transition-all ${
+              portalSent ? 'bg-emerald-500' : 'bg-brand-600 hover:bg-brand-700'
+            }`}
           >
-            {copied ? 'Copied' : 'Copy'}
-          </Button>
+            {portalSent ? <Check size={14} /> : <Bell size={14} />}
+            {portalSent ? 'Sent in portal' : 'Send portal nudge'}
+          </button>
           <a
             href={hasEmail ? composeLink : undefined}
             target={useGmail ? '_blank' : undefined}
             rel={useGmail ? 'noreferrer noopener' : undefined}
             onClick={!hasEmail ? (e) => e.preventDefault() : undefined}
-            className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold text-white transition-all ${
+            className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold text-white transition-all ${
               !hasEmail ? 'opacity-40 cursor-not-allowed bg-stone-400' : 'bg-[#EA4335] hover:opacity-90'
             }`}
           >
@@ -169,6 +193,15 @@ export function SendReminderModal({ open, onClose, event }: Props) {
             {useGmail ? 'Open in Gmail' : 'Open Email App'}
           </a>
         </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          icon={copied ? <Check size={14} /> : <Copy size={14} />}
+          onClick={() => copyText(emailBody)}
+          className="w-full"
+        >
+          {copied ? 'Copied email body' : 'Copy email body'}
+        </Button>
 
       </div>
     </Modal>

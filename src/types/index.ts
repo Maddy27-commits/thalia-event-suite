@@ -1,5 +1,5 @@
 // ─── Roles ───────────────────────────────────────────────────────────────────
-export type Role = 'planner' | 'client'
+export type Role = 'planner' | 'client' | 'vendor'
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 export interface AuthSession {
@@ -8,6 +8,10 @@ export interface AuthSession {
   email: string
   /** For clients: the event ID they are locked to */
   clientEventId?: string
+  /** For clients on multi-stakeholder events: which stakeholder record they are. */
+  stakeholderId?: string
+  /** For vendors: their vendor record id (matched by email at sign-in). */
+  vendorId?: string
   /** Planner previewing the client portal for a specific event */
   isPlannerPreview: boolean
   /** ID of the event being previewed (planner preview mode) */
@@ -137,9 +141,82 @@ export interface Event {
   updatedAt: string
   /** Email of the planner who owns this event — used to scope data per planner account. */
   plannerEmail?: string
-  /** 6-digit code the client must enter alongside their email to access the portal.
-   *  Generated when the event is created; planner shares it with the client out-of-band. */
+  /** LEGACY single-client access code. Migrated into stakeholders[0] on
+   *  rehydrate; kept here for backwards-compat with older code paths. */
   accessCode?: string
+  /** Per-event chat threads with assigned vendors. Only vendors in vendorIds
+   *  are eligible to participate; the planner adds messages on their behalf. */
+  vendorMessages?: VendorChatMessage[]
+  /** Multi-stakeholder: list of people on the client side who can sign in to
+   *  this event. Each has their own access code and role. Soft-deleted via
+   *  `removedAt` so historical attribution survives. */
+  stakeholders?: Stakeholder[]
+  /** Pending actions awaiting organiser approval (e.g. stakeholder removal). */
+  pendingActions?: PendingAction[]
+}
+
+/** Permission level a stakeholder has on a specific event. */
+export type StakeholderRole = 'organiser' | 'contributor' | 'viewer'
+
+/**
+ * One person on the client side of an event. Each gets their own access code
+ * and role; soft-deletion via `removedAt` so messages and approvals stay
+ * attributed even after access is revoked.
+ *
+ * Visibility uses the role's defaults plus optional per-stakeholder overrides
+ * (`hiddenStageIds`, `hideBudget`). Restricting visibility is for discretion,
+ * not security — anything in the browser is technically inspectable.
+ */
+export interface Stakeholder {
+  id: string
+  name: string
+  email: string
+  /** 6-digit numeric — required at sign-in alongside the email. */
+  accessCode: string
+  role: StakeholderRole
+  /** Override: stage ids this stakeholder should not see. */
+  hiddenStageIds?: string[]
+  /** Override: hide the event budget figure from this stakeholder. */
+  hideBudget?: boolean
+  addedAt: string
+  /** Soft-delete timestamp. When set, sign-in is blocked and historical
+   *  records (messages, approvals) remain attributed. */
+  removedAt?: string
+}
+
+/**
+ * An action that requires another organiser's (or the planner's) sign-off
+ * before it takes effect. Currently used for stakeholder removal; the same
+ * shape can extend to other "two-key" operations in future.
+ */
+export interface PendingAction {
+  id: string
+  kind: 'remove-stakeholder'
+  payload: { stakeholderId: string }
+  /** Email of the requester (organiser or planner). */
+  requestedBy: string
+  requestedAt: string
+  /** Email of the approver. Set when the action is approved. */
+  approvedBy?: string
+  approvedAt?: string
+  /** If present, the action was declined and is closed. */
+  declinedAt?: string
+}
+
+/**
+ * One message in the event-level vendor coordination chat. Threaded by vendorId
+ * — each vendor effectively gets their own conversation scoped to the event,
+ * separate from per-task discussions in the TaskDrawer.
+ */
+export interface VendorChatMessage {
+  id: string
+  /** Which vendor this conversation belongs to. Must be in event.vendorIds. */
+  vendorId: string
+  /** Who sent the message. Vendors don't have accounts yet — the planner
+   *  enters vendor messages manually on their behalf. */
+  author: 'planner' | 'vendor'
+  content: string
+  timestamp: string
 }
 
 // ─── Hierarchical checklist (3 levels) ───────────────────────────────────────
@@ -297,6 +374,25 @@ export interface ConceptGeneratorInput {
 // ─── User Profiles ────────────────────────────────────────────────────────────
 /** Planner's email notification preferences. None of these wire to real
  *  delivery yet — the UI lets the planner state their intent. */
+/**
+ * In-portal notification surfaced through the header bell. Multi-recipient by
+ * design — `recipientEmail` is the lookup key. A planner sending a concept
+ * reminder writes a notification addressed to the client's email; the same
+ * notification appears in the client's bell next time they sign in.
+ */
+export interface Notification {
+  id: string
+  recipientEmail: string
+  eventId: string
+  kind: 'concept-reminder' | 'milestone-due' | 'planner-message' | 'vendor-message' | 'general'
+  title: string
+  body: string
+  /** Optional in-app deep link, e.g. "/client/concepts". */
+  link?: string
+  read: boolean
+  createdAt: string
+}
+
 export interface NotificationPrefs {
   /** When a client approves / declines / requests changes on a concept. */
   conceptDecisions: boolean
@@ -341,6 +437,7 @@ export interface AppState {
   apiKey: string
   plannerProfile: PlannerProfile
   clientProfile: ClientProfile
+  notifications: Notification[]
 
   // Role
   setRole: (role: Role) => void
@@ -366,6 +463,25 @@ export interface AppState {
   updateEvent: (id: string, updates: Partial<Event>) => void
   deleteEvent: (id: string) => void
   duplicateEvent: (id: string) => string | null
+
+  // Event-level vendor chat
+  addVendorMessage: (eventId: string, msg: VendorChatMessage) => void
+  deleteVendorMessage: (eventId: string, msgId: string) => void
+
+  // Stakeholders (multi-client)
+  addStakeholder: (eventId: string, stakeholder: Stakeholder) => void
+  updateStakeholder: (eventId: string, stakeholderId: string, updates: Partial<Stakeholder>) => void
+  /** Request a removal — requires organiser/planner approval before taking effect. */
+  requestRemoveStakeholder: (eventId: string, stakeholderId: string, requesterEmail: string) => string | null
+  /** Approve a pending removal — finalises by stamping removedAt on the stakeholder. */
+  approveStakeholderRemoval: (eventId: string, pendingActionId: string, approverEmail: string) => void
+  declinePendingAction: (eventId: string, pendingActionId: string) => void
+
+  // Notifications
+  addNotification: (n: Notification) => void
+  markNotificationRead: (id: string) => void
+  markAllNotificationsRead: (recipientEmail: string) => void
+  dismissNotification: (id: string) => void
 
   // Vendors
   addVendor: (vendor: Vendor) => void

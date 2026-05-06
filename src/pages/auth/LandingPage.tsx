@@ -16,6 +16,7 @@ export function LandingPage() {
 
   const goPlanner = () => navigate('/auth/planner')
   const goClient  = () => navigate('/auth/client')
+  const goVendor  = () => navigate('/auth/vendor')
   const goDemo    = () => navigate('/auth/planner?demo=1')
 
   return (
@@ -85,6 +86,13 @@ export function LandingPage() {
           >
             <Sparkles size={15} className="text-sage-400" />
             I'm a client
+          </button>
+          <button
+            onClick={goVendor}
+            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-white/[0.06] hover:bg-white/[0.1] text-white font-semibold text-sm px-7 py-3.5 rounded-full ring-1 ring-white/15 transition-all"
+          >
+            <Store size={15} className="text-amber-400" />
+            I'm a vendor
           </button>
         </div>
 
@@ -209,6 +217,13 @@ export function LandingPage() {
             >
               <Users size={15} className="text-sage-400" />
               I'm a client
+            </button>
+            <button
+              onClick={goVendor}
+              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-white/[0.06] hover:bg-white/[0.1] text-white font-semibold text-sm px-7 py-3.5 rounded-full ring-1 ring-white/15 transition-all"
+            >
+              <Store size={15} className="text-amber-400" />
+              I'm a vendor
             </button>
           </div>
         </div>

@@ -1,6 +1,7 @@
-import { Bell, ChevronDown, Menu, LogOut } from 'lucide-react'
+import { ChevronDown, Menu, LogOut } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useStore } from '../../store'
+import { NotificationBell } from './NotificationBell'
 
 interface HeaderProps {
   onMenuClick?: () => void
@@ -18,6 +19,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/client/concepts':       'Concepts & Approvals',
   '/client/progress':       'Progress',
   '/client/settings':       'Settings',
+  '/vendor':                'My Events',
 }
 
 export function Header({ onMenuClick }: HeaderProps) {
@@ -35,9 +37,12 @@ export function Header({ onMenuClick }: HeaderProps) {
     .map(s => s[0]?.toUpperCase()).join('')
     || (isPlanner ? 'P' : 'C')
 
+  const isVendor = role === 'vendor'
   const avatarGradient = isPlanner
     ? 'from-brand-400 to-brand-600'
-    : 'from-sage-400 to-sage-600'
+    : isVendor
+      ? 'from-amber-400 to-amber-600'
+      : 'from-sage-400 to-sage-600'
 
   const handleLogout = () => {
     logout()
@@ -60,10 +65,17 @@ export function Header({ onMenuClick }: HeaderProps) {
 
         {/* Desktop: role indicator */}
         <div className="hidden md:flex items-center gap-2.5">
-          <div className={`w-2 h-2 rounded-full ${isPlanner ? 'bg-brand-500' : 'bg-sage-500'}`} />
-          <span className="text-sm font-medium text-stone-500">
-            {isPlanner ? 'Planner Suite' : 'Client Portal'}
-          </span>
+          {(() => {
+            const isVendor = role === 'vendor'
+            const dot = isPlanner ? 'bg-brand-500' : isVendor ? 'bg-amber-500' : 'bg-sage-500'
+            const label = isPlanner ? 'Planner Suite' : isVendor ? 'Vendor Portal' : 'Client Portal'
+            return (
+              <>
+                <div className={`w-2 h-2 rounded-full ${dot}`} />
+                <span className="text-sm font-medium text-stone-500">{label}</span>
+              </>
+            )
+          })()}
         </div>
 
         {/* Mobile: current page title */}
@@ -72,14 +84,8 @@ export function Header({ onMenuClick }: HeaderProps) {
 
       {/* Right */}
       <div className="flex items-center gap-1.5 sm:gap-2">
-        {/* Notification bell */}
-        <button
-          className="relative p-2 rounded-xl text-stone-400 hover:text-stone-600 hover:bg-stone-100 transition-colors"
-          aria-label="Notifications"
-        >
-          <Bell size={16} />
-          <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-rose-500 rounded-full ring-1 ring-white" />
-        </button>
+        {/* Real notification bell — opens dropdown of recent items */}
+        <NotificationBell />
 
         {/* Avatar + name */}
         <div className="flex items-center gap-1.5 sm:gap-2 pl-1 pr-1 py-1">

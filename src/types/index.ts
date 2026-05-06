@@ -316,6 +316,25 @@ export interface ConceptGeneratorInput {
 // ─── User Profiles ────────────────────────────────────────────────────────────
 /** Planner's email notification preferences. None of these wire to real
  *  delivery yet — the UI lets the planner state their intent. */
+/**
+ * In-portal notification surfaced through the header bell. Multi-recipient by
+ * design — `recipientEmail` is the lookup key. A planner sending a concept
+ * reminder writes a notification addressed to the client's email; the same
+ * notification appears in the client's bell next time they sign in.
+ */
+export interface Notification {
+  id: string
+  recipientEmail: string
+  eventId: string
+  kind: 'concept-reminder' | 'milestone-due' | 'planner-message' | 'vendor-message' | 'general'
+  title: string
+  body: string
+  /** Optional in-app deep link, e.g. "/client/concepts". */
+  link?: string
+  read: boolean
+  createdAt: string
+}
+
 export interface NotificationPrefs {
   /** When a client approves / declines / requests changes on a concept. */
   conceptDecisions: boolean
@@ -360,6 +379,7 @@ export interface AppState {
   apiKey: string
   plannerProfile: PlannerProfile
   clientProfile: ClientProfile
+  notifications: Notification[]
 
   // Role
   setRole: (role: Role) => void
@@ -389,6 +409,12 @@ export interface AppState {
   // Event-level vendor chat
   addVendorMessage: (eventId: string, msg: VendorChatMessage) => void
   deleteVendorMessage: (eventId: string, msgId: string) => void
+
+  // Notifications
+  addNotification: (n: Notification) => void
+  markNotificationRead: (id: string) => void
+  markAllNotificationsRead: (recipientEmail: string) => void
+  dismissNotification: (id: string) => void
 
   // Vendors
   addVendor: (vendor: Vendor) => void

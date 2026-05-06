@@ -1015,6 +1015,7 @@ export const useStore = create<AppState>()(
       events: SAMPLE_EVENTS,
       vendors: SAMPLE_VENDORS,
       isGenerating: false,
+      notifications: [],
       apiKey: '',
       plannerProfile: DEFAULT_PLANNER_PROFILE,
       clientProfile: DEFAULT_CLIENT_PROFILE,
@@ -1223,6 +1224,28 @@ export const useStore = create<AppState>()(
               : e
           ),
         })),
+
+      // ── Notifications ────────────────────────────────────────────────────
+      // Capped to a sliding window of the most recent 200 entries so the
+      // store doesn't grow unbounded over time.
+      addNotification: (n) =>
+        set((s) => ({
+          notifications: [n, ...s.notifications].slice(0, 200),
+        })),
+      markNotificationRead: (id) =>
+        set((s) => ({
+          notifications: s.notifications.map((n) => (n.id === id ? { ...n, read: true } : n)),
+        })),
+      markAllNotificationsRead: (recipientEmail) => {
+        const target = recipientEmail.toLowerCase()
+        set((s) => ({
+          notifications: s.notifications.map((n) =>
+            n.recipientEmail.toLowerCase() === target ? { ...n, read: true } : n
+          ),
+        }))
+      },
+      dismissNotification: (id) =>
+        set((s) => ({ notifications: s.notifications.filter((n) => n.id !== id) })),
 
       addVendor: (vendor) => set((s) => ({ vendors: [...s.vendors, vendor] })),
       updateVendor: (id, updates) =>

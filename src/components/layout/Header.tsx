@@ -1,6 +1,7 @@
-import { Bell, ChevronDown, Menu, LogOut } from 'lucide-react'
+import { ChevronDown, Menu, LogOut } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useStore } from '../../store'
+import { NotificationBell } from './NotificationBell'
 
 interface HeaderProps {
   onMenuClick?: () => void
@@ -72,14 +73,8 @@ export function Header({ onMenuClick }: HeaderProps) {
 
       {/* Right */}
       <div className="flex items-center gap-1.5 sm:gap-2">
-        {/* Notification bell */}
-        <button
-          className="relative p-2 rounded-xl text-stone-400 hover:text-stone-600 hover:bg-stone-100 transition-colors"
-          aria-label="Notifications"
-        >
-          <Bell size={16} />
-          <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-rose-500 rounded-full ring-1 ring-white" />
-        </button>
+        {/* Real notification bell — opens dropdown of recent items */}
+        <NotificationBell />
 
         {/* Avatar + name */}
         <div className="flex items-center gap-1.5 sm:gap-2 pl-1 pr-1 py-1">

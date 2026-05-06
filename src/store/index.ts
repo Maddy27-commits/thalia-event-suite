@@ -4,7 +4,7 @@ import type {
   AppState, Event, Vendor, ConceptStatus, Role,
   PlannerProfile, ClientProfile, EventType,
   EventCeremony, EventStage, StageTask, TaskMessage,
-  AuthSession, RegisteredPlanner,
+  AuthSession, RegisteredPlanner, Stakeholder, PendingAction,
 } from '../types'
 import { offsetDate } from '../lib/utils'
 import { hashPassword, generateSalt, safeEqual } from '../lib/crypto'
@@ -191,16 +191,32 @@ function generateAccessCode(): string {
 }
 
 /**
- * Bring a persisted Event up to the current schema. Two known migrations:
+ * Bring a persisted Event up to the current schema. Known migrations:
  *   1. Generate an access code if one is missing (added in a later release).
  *   2. Field rename: `subCategories` -> `stages`. Pre-rename localStorage
  *      entries still carry `subCategories`; we copy them across so they
  *      keep working without a destructive reset.
+ *   3. Multi-stakeholder: if the event has no stakeholders[] yet, seed it
+ *      from the legacy clientName/clientEmail/accessCode triple as a single
+ *      organiser. Existing single-client events keep working transparently.
  */
 function migrateEvent(e: Event): Event {
+  const accessCode = e.accessCode && /^\d{6}$/.test(e.accessCode) ? e.accessCode : generateAccessCode()
+  const stakeholders = (e.stakeholders && e.stakeholders.length > 0)
+    ? e.stakeholders
+    : [{
+        id: uid(),
+        name: e.clientName || 'Primary client',
+        email: e.clientEmail || '',
+        accessCode,
+        role: 'organiser' as const,
+        addedAt: e.createdAt,
+      }]
   return {
     ...e,
-    accessCode: e.accessCode && /^\d{6}$/.test(e.accessCode) ? e.accessCode : generateAccessCode(),
+    accessCode,
+    stakeholders,
+    pendingActions: e.pendingActions ?? [],
     ceremonies: (e.ceremonies ?? []).map(c => {
       // Legacy: pre-rename ceremonies persisted with `subCategories` instead of `stages`.
       const legacy = c as unknown as { subCategories?: EventStage[] }
@@ -1205,6 +1221,117 @@ export const useStore = create<AppState>()(
         }
         set((s) => ({ events: [...s.events, copy] }))
         return copy.id
+      },
+
+      // ── Stakeholders (multi-client) ──────────────────────────────────────
+      addStakeholder: (eventId, stakeholder) =>
+        set((s) => ({
+          events: s.events.map((e) =>
+            e.id === eventId
+              ? { ...e, stakeholders: [...(e.stakeholders ?? []), stakeholder] }
+              : e
+          ),
+        })),
+      updateStakeholder: (eventId, stakeholderId, updates) =>
+        set((s) => ({
+          events: s.events.map((e) =>
+            e.id === eventId
+              ? {
+                  ...e,
+                  stakeholders: (e.stakeholders ?? []).map((sh) =>
+                    sh.id === stakeholderId ? { ...sh, ...updates } : sh
+                  ),
+                }
+              : e
+          ),
+        })),
+      /**
+       * Removing a stakeholder requires a second signature from another
+       * organiser (or planner override). This call only opens the request;
+       * approveStakeholderRemoval finalises it. If the requester is removing
+       * themselves, it auto-approves on the spot — no need for someone else
+       * to rubber-stamp a self-removal.
+       */
+      requestRemoveStakeholder: (eventId, stakeholderId, requesterEmail) => {
+        const ev = get().events.find((e) => e.id === eventId)
+        if (!ev) return null
+        const target = (ev.stakeholders ?? []).find((sh) => sh.id === stakeholderId)
+        if (!target) return null
+
+        const action: PendingAction = {
+          id: uid(),
+          kind: 'remove-stakeholder',
+          payload: { stakeholderId },
+          requestedBy: requesterEmail,
+          requestedAt: new Date().toISOString(),
+        }
+
+        // Self-removal is always allowed without a second signature.
+        const isSelfRemoval = target.email.toLowerCase() === requesterEmail.toLowerCase()
+        if (isSelfRemoval) {
+          set((s) => ({
+            events: s.events.map((e) =>
+              e.id === eventId
+                ? {
+                    ...e,
+                    stakeholders: (e.stakeholders ?? []).map((sh) =>
+                      sh.id === stakeholderId ? { ...sh, removedAt: new Date().toISOString() } : sh
+                    ),
+                    pendingActions: [
+                      ...(e.pendingActions ?? []),
+                      { ...action, approvedBy: requesterEmail, approvedAt: new Date().toISOString() },
+                    ],
+                  }
+                : e
+            ),
+          }))
+          return action.id
+        }
+
+        set((s) => ({
+          events: s.events.map((e) =>
+            e.id === eventId
+              ? { ...e, pendingActions: [...(e.pendingActions ?? []), action] }
+              : e
+          ),
+        }))
+        return action.id
+      },
+      approveStakeholderRemoval: (eventId, pendingActionId, approverEmail) => {
+        set((s) => ({
+          events: s.events.map((e) => {
+            if (e.id !== eventId) return e
+            const action = (e.pendingActions ?? []).find((a) => a.id === pendingActionId)
+            if (!action || action.approvedAt || action.declinedAt) return e
+            return {
+              ...e,
+              stakeholders: (e.stakeholders ?? []).map((sh) =>
+                sh.id === action.payload.stakeholderId
+                  ? { ...sh, removedAt: new Date().toISOString() }
+                  : sh
+              ),
+              pendingActions: (e.pendingActions ?? []).map((a) =>
+                a.id === pendingActionId
+                  ? { ...a, approvedBy: approverEmail, approvedAt: new Date().toISOString() }
+                  : a
+              ),
+            }
+          }),
+        }))
+      },
+      declinePendingAction: (eventId, pendingActionId) => {
+        set((s) => ({
+          events: s.events.map((e) =>
+            e.id === eventId
+              ? {
+                  ...e,
+                  pendingActions: (e.pendingActions ?? []).map((a) =>
+                    a.id === pendingActionId ? { ...a, declinedAt: new Date().toISOString() } : a
+                  ),
+                }
+              : e
+          ),
+        }))
       },
 
       // Event-level vendor chat — append-only audit trail keyed off vendorId.

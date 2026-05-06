@@ -8,6 +8,8 @@ export interface AuthSession {
   email: string
   /** For clients: the event ID they are locked to */
   clientEventId?: string
+  /** For clients on multi-stakeholder events: which stakeholder record they are. */
+  stakeholderId?: string
   /** For vendors: their vendor record id (matched by email at sign-in). */
   vendorId?: string
   /** Planner previewing the client portal for a specific event */
@@ -139,12 +141,66 @@ export interface Event {
   updatedAt: string
   /** Email of the planner who owns this event — used to scope data per planner account. */
   plannerEmail?: string
-  /** 6-digit code the client must enter alongside their email to access the portal.
-   *  Generated when the event is created; planner shares it with the client out-of-band. */
+  /** LEGACY single-client access code. Migrated into stakeholders[0] on
+   *  rehydrate; kept here for backwards-compat with older code paths. */
   accessCode?: string
   /** Per-event chat threads with assigned vendors. Only vendors in vendorIds
    *  are eligible to participate; the planner adds messages on their behalf. */
   vendorMessages?: VendorChatMessage[]
+  /** Multi-stakeholder: list of people on the client side who can sign in to
+   *  this event. Each has their own access code and role. Soft-deleted via
+   *  `removedAt` so historical attribution survives. */
+  stakeholders?: Stakeholder[]
+  /** Pending actions awaiting organiser approval (e.g. stakeholder removal). */
+  pendingActions?: PendingAction[]
+}
+
+/** Permission level a stakeholder has on a specific event. */
+export type StakeholderRole = 'organiser' | 'contributor' | 'viewer'
+
+/**
+ * One person on the client side of an event. Each gets their own access code
+ * and role; soft-deletion via `removedAt` so messages and approvals stay
+ * attributed even after access is revoked.
+ *
+ * Visibility uses the role's defaults plus optional per-stakeholder overrides
+ * (`hiddenStageIds`, `hideBudget`). Restricting visibility is for discretion,
+ * not security — anything in the browser is technically inspectable.
+ */
+export interface Stakeholder {
+  id: string
+  name: string
+  email: string
+  /** 6-digit numeric — required at sign-in alongside the email. */
+  accessCode: string
+  role: StakeholderRole
+  /** Override: stage ids this stakeholder should not see. */
+  hiddenStageIds?: string[]
+  /** Override: hide the event budget figure from this stakeholder. */
+  hideBudget?: boolean
+  addedAt: string
+  /** Soft-delete timestamp. When set, sign-in is blocked and historical
+   *  records (messages, approvals) remain attributed. */
+  removedAt?: string
+}
+
+/**
+ * An action that requires another organiser's (or the planner's) sign-off
+ * before it takes effect. Currently used for stakeholder removal; the same
+ * shape can extend to other "two-key" operations in future.
+ */
+export interface PendingAction {
+  id: string
+  kind: 'remove-stakeholder'
+  payload: { stakeholderId: string }
+  /** Email of the requester (organiser or planner). */
+  requestedBy: string
+  requestedAt: string
+  /** Email of the approver. Set when the action is approved. */
+  approvedBy?: string
+  approvedAt?: string
+  /** If present, the action was declined and is closed. */
+  declinedAt?: string
 }
 
 /**
@@ -411,6 +467,15 @@ export interface AppState {
   // Event-level vendor chat
   addVendorMessage: (eventId: string, msg: VendorChatMessage) => void
   deleteVendorMessage: (eventId: string, msgId: string) => void
+
+  // Stakeholders (multi-client)
+  addStakeholder: (eventId: string, stakeholder: Stakeholder) => void
+  updateStakeholder: (eventId: string, stakeholderId: string, updates: Partial<Stakeholder>) => void
+  /** Request a removal — requires organiser/planner approval before taking effect. */
+  requestRemoveStakeholder: (eventId: string, stakeholderId: string, requesterEmail: string) => string | null
+  /** Approve a pending removal — finalises by stamping removedAt on the stakeholder. */
+  approveStakeholderRemoval: (eventId: string, pendingActionId: string, approverEmail: string) => void
+  declinePendingAction: (eventId: string, pendingActionId: string) => void
 
   // Notifications
   addNotification: (n: Notification) => void

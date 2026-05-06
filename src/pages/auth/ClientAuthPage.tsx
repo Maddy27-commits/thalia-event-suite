@@ -23,29 +23,48 @@ export function ClientAuthPage() {
     setLoading(true)
     // Small delay for perceived loading + to throttle brute-force attempts
     setTimeout(() => {
-      const matchedEvent = events.find(
-        (e) => e.clientEmail?.toLowerCase() === trimmedEmail
+      // Multi-stakeholder lookup: an email + code may match a stakeholder on
+      // any event. Removed stakeholders are filtered out so revoked access
+      // can't be reused. Falls back to the legacy event.clientEmail/accessCode
+      // path for any data that hasn't run through the migration yet.
+      const matches = events.flatMap((e) =>
+        (e.stakeholders ?? [])
+          .filter((sh) => !sh.removedAt)
+          .filter((sh) => sh.email.toLowerCase() === trimmedEmail && sh.accessCode === trimmedCode)
+          .map((sh) => ({ event: e, stakeholder: sh }))
       )
 
-      if (!matchedEvent) {
-        // Same error for "no email" and "wrong code" — don't leak which exists
-        setError("We couldn't find an event matching that email and code. Please double-check both.")
-        setLoading(false)
-        return
-      }
-      if (!matchedEvent.accessCode || matchedEvent.accessCode !== trimmedCode) {
+      const legacy = matches.length === 0
+        ? events.find((e) => e.clientEmail?.toLowerCase() === trimmedEmail && e.accessCode === trimmedCode)
+        : null
+
+      if (matches.length === 0 && !legacy) {
+        // Same error for every failure mode — don't leak which field is wrong
         setError("We couldn't find an event matching that email and code. Please double-check both.")
         setLoading(false)
         return
       }
 
-      login({
-        role: 'client',
-        displayName: matchedEvent.clientName,
-        email: trimmedEmail,
-        clientEventId: matchedEvent.id,
-        isPlannerPreview: false,
-      })
+      if (legacy) {
+        login({
+          role: 'client',
+          displayName: legacy.clientName,
+          email: trimmedEmail,
+          clientEventId: legacy.id,
+          isPlannerPreview: false,
+        })
+      } else {
+        // Pick the most recent match if a stakeholder appears on multiple events
+        const pick = matches[0]
+        login({
+          role: 'client',
+          displayName: pick.stakeholder.name,
+          email: trimmedEmail,
+          clientEventId: pick.event.id,
+          stakeholderId: pick.stakeholder.id,
+          isPlannerPreview: false,
+        })
+      }
       navigate('/client', { replace: true })
     }, 400)
   }

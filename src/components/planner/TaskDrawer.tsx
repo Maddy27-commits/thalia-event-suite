@@ -392,8 +392,16 @@ export function TaskDrawer({ event, ceremony, sub, task, onClose }: TaskDrawerPr
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
           {/* Phase guidance — different content per phase */}
           <PhaseIntroCard phase={activePhase} />
-          {/* AI insights summary (if any) */}
-          {(aggregateInsight.preferences.length || aggregateInsight.concerns.length || aggregateInsight.decisions.length) > 0 && (
+          {/*
+           * Section visibility is driven by the active phase tab so each phase
+           * shows only the work that belongs to it. Briefing focuses on
+           * gathering preferences (AI insights + chat); Recommendations and
+           * Revisions surface the option-building tools; Client Review shows
+           * options (read-mostly) for the client to react to; Final collapses
+           * down to the locked-in decision.
+           */}
+          {/* AI insights summary — useful in every phase except Final (where the decision is locked) */}
+          {activePhase !== 'final' && (aggregateInsight.preferences.length || aggregateInsight.concerns.length || aggregateInsight.decisions.length) > 0 && (
             <div className="rounded-2xl bg-gradient-to-br from-violet-50 to-fuchsia-50 ring-1 ring-violet-100 p-4">
               <div className="flex items-center gap-2 mb-3">
                 <Sparkles size={14} className="text-violet-600" />
@@ -447,7 +455,34 @@ export function TaskDrawer({ event, ceremony, sub, task, onClose }: TaskDrawerPr
             </div>
           )}
 
-          {/* ── Options / Recommendations ── */}
+          {/* Options & Recommendations — hidden in Briefing (you are still
+              gathering the brief; nothing to recommend yet). In Final we show
+              only the selected option further below as a read-only summary. */}
+          {activePhase === 'briefing' && (
+            <div className="rounded-2xl bg-stone-50 ring-1 ring-stone-200 p-4 text-center">
+              <p className="text-sm font-semibold text-stone-700 mb-1">Still capturing the brief</p>
+              <p className="text-[11px] text-stone-500 leading-relaxed">
+                Options, vendor ideas and AI generation appear once you advance to the <span className="font-semibold text-violet-600">Recommendations</span> phase above.
+              </p>
+            </div>
+          )}
+          {activePhase === 'final' && (() => {
+            const finalOpt = task.options.find((o) => o.status === 'selected')
+            return finalOpt ? (
+              <div className="rounded-2xl bg-emerald-50 ring-1 ring-emerald-200 p-4">
+                <p className="text-[11px] font-bold text-emerald-700 uppercase tracking-widest mb-1">Locked-in decision</p>
+                <p className="text-base font-bold text-stone-900">{finalOpt.title}</p>
+                {finalOpt.estimatedCost && <p className="text-xs text-emerald-700 font-semibold mt-0.5">{finalOpt.estimatedCost}</p>}
+                {finalOpt.description && <p className="text-xs text-stone-600 mt-2 leading-relaxed">{finalOpt.description}</p>}
+              </div>
+            ) : (
+              <div className="rounded-2xl bg-amber-50 ring-1 ring-amber-200 p-4">
+                <p className="text-sm font-semibold text-amber-800 mb-1">No option selected yet</p>
+                <p className="text-[11px] text-amber-700">Go back to <span className="font-semibold">Client Review</span> or <span className="font-semibold">Revisions</span> and mark an option as Selected to lock the final decision.</p>
+              </div>
+            )
+          })()}
+          {activePhase !== 'briefing' && activePhase !== 'final' && (
           <section className={cn(
             'rounded-2xl transition-all',
             activePhase === 'recommendations' && 'ring-2 ring-violet-200 bg-violet-50/30 -mx-2 px-2 py-3',
@@ -529,6 +564,7 @@ export function TaskDrawer({ event, ceremony, sub, task, onClose }: TaskDrawerPr
               </div>
             )}
           </section>
+          )}
 
           {/* ── Discussion (in-app chat) ── */}
           <section>

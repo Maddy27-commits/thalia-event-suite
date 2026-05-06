@@ -851,6 +851,175 @@ function ClientAccessCodePanel({ event }: { event: Event }) {
   )
 }
 
+// ─── Vendor Chat Panel ───────────────────────────────────────────────────────
+// Event-level chat with assigned vendors. Each vendor in event.vendorIds gets
+// their own thread; vendors not assigned to the event are invisible here, so
+// only "selected" vendors can join the conversation.
+function VendorChatPanel({ event }: { event: Event }) {
+  const { vendors, addVendorMessage, deleteVendorMessage } = useStore()
+  const [selectedVendorId, setSelectedVendorId] = useState<string | null>(null)
+  const [draft, setDraft] = useState('')
+  const [draftAuthor, setDraftAuthor] = useState<'planner' | 'vendor'>('vendor')
+  const [expanded, setExpanded] = useState(false)
+
+  // Only vendors assigned to this event can participate in the chat.
+  const assignedVendors = vendors.filter((v) => event.vendorIds.includes(v.id))
+  const activeVendorId = selectedVendorId ?? assignedVendors[0]?.id ?? null
+  const activeVendor   = assignedVendors.find((v) => v.id === activeVendorId)
+  const messages = (event.vendorMessages ?? [])
+    .filter((m) => m.vendorId === activeVendorId)
+    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+
+  const handleSend = () => {
+    const content = draft.trim()
+    if (!content || !activeVendorId) return
+    addVendorMessage(event.id, {
+      id: generateId(),
+      vendorId: activeVendorId,
+      author: draftAuthor,
+      content,
+      timestamp: new Date().toISOString(),
+    })
+    setDraft('')
+  }
+
+  return (
+    <div className="px-5 pb-4 border-t border-stone-100">
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        className="w-full flex items-center gap-3 mt-4 text-left group"
+      >
+        <div className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center shrink-0">
+          <MessageSquare size={13} className="text-amber-600" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-semibold text-stone-700 group-hover:text-stone-900 transition-colors">
+            Vendor coordination
+          </p>
+          <p className="text-[10px] text-stone-400">
+            {assignedVendors.length === 0
+              ? 'Assign vendors above to start a chat'
+              : `${assignedVendors.length} vendor${assignedVendors.length !== 1 ? 's' : ''} can join · ${event.vendorMessages?.length ?? 0} message${(event.vendorMessages?.length ?? 0) !== 1 ? 's' : ''}`}
+          </p>
+        </div>
+        <ChevronDown size={14} className={`text-stone-300 transition-transform shrink-0 ${expanded ? 'rotate-180' : ''}`} />
+      </button>
+
+      {expanded && (
+        <div className="mt-3 rounded-2xl bg-stone-50 ring-1 ring-stone-100 overflow-hidden">
+          {assignedVendors.length === 0 ? (
+            <div className="p-5 text-center">
+              <p className="text-xs text-stone-500 leading-relaxed">
+                No vendors assigned yet. Use the Vendor assignment panel above to add vendors — only assigned vendors can join this chat.
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* Vendor tab strip — restricted to event.vendorIds */}
+              <div className="flex gap-1 overflow-x-auto px-3 pt-3 pb-2 scrollbar-hide border-b border-stone-100 bg-white">
+                {assignedVendors.map((v) => (
+                  <button
+                    key={v.id}
+                    onClick={() => setSelectedVendorId(v.id)}
+                    className={`text-[11px] font-semibold whitespace-nowrap px-3 py-1.5 rounded-full transition-all ${
+                      v.id === activeVendorId
+                        ? 'bg-amber-500 text-white shadow-sm'
+                        : 'text-stone-500 bg-stone-50 hover:bg-stone-100 ring-1 ring-stone-200'
+                    }`}
+                  >
+                    {v.name}
+                  </button>
+                ))}
+              </div>
+
+              {/* Active vendor's thread */}
+              <div className="px-4 py-3 max-h-80 overflow-y-auto space-y-2.5 bg-white">
+                {messages.length === 0 ? (
+                  <p className="text-xs text-stone-400 italic text-center py-4">
+                    No messages with {activeVendor?.name ?? 'this vendor'} yet. Share your finalised concepts and brief to start iterating.
+                  </p>
+                ) : (
+                  messages.map((m) => (
+                    <div key={m.id} className={`flex gap-2 group ${m.author === 'planner' ? 'flex-row-reverse' : ''}`}>
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
+                        m.author === 'planner' ? 'bg-brand-100 text-brand-700' : 'bg-amber-100 text-amber-700'
+                      }`}>
+                        {m.author === 'planner' ? 'You' : (activeVendor?.name ?? 'V').slice(0, 2).toUpperCase()}
+                      </div>
+                      <div className={`flex-1 min-w-0 ${m.author === 'planner' ? 'flex flex-col items-end' : ''}`}>
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="text-[10px] font-semibold text-stone-600">
+                            {m.author === 'planner' ? 'You' : (activeVendor?.name ?? 'Vendor')}
+                          </span>
+                          <span className="text-[10px] text-stone-300">{new Date(m.timestamp).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
+                          <button
+                            onClick={() => deleteVendorMessage(event.id, m.id)}
+                            className="text-stone-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="Delete message"
+                          >
+                            <X size={10} />
+                          </button>
+                        </div>
+                        <div className={`rounded-2xl px-3.5 py-2 text-sm leading-relaxed max-w-[88%] whitespace-pre-wrap break-words ${
+                          m.author === 'planner'
+                            ? 'bg-brand-500 text-white rounded-tr-sm'
+                            : 'bg-amber-50 text-stone-800 rounded-tl-sm ring-1 ring-amber-100'
+                        }`}>
+                          {m.content}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Composer */}
+              <div className="border-t border-stone-100 p-3 bg-white">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-[10px] text-stone-400 font-semibold uppercase tracking-widest">From:</span>
+                  <select
+                    value={draftAuthor}
+                    onChange={(e) => setDraftAuthor(e.target.value as 'planner' | 'vendor')}
+                    className="text-xs border border-stone-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 font-medium text-stone-700"
+                  >
+                    <option value="planner">You (planner)</option>
+                    <option value="vendor">{activeVendor?.name ?? 'Vendor'}</option>
+                  </select>
+                </div>
+                <div className="flex gap-2 items-end">
+                  <textarea
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                        e.preventDefault()
+                        handleSend()
+                      }
+                    }}
+                    placeholder={draftAuthor === 'planner'
+                      ? `Share concepts, briefs, or asks with ${activeVendor?.name ?? 'this vendor'}…`
+                      : `Log a reply from ${activeVendor?.name ?? 'this vendor'}…`}
+                    rows={2}
+                    className="flex-1 text-sm border border-stone-200 rounded-2xl px-3.5 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none bg-stone-50"
+                  />
+                  <button
+                    onClick={handleSend}
+                    disabled={!draft.trim()}
+                    className="flex items-center justify-center gap-1 text-xs font-semibold px-3 py-2.5 rounded-xl bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-40 transition-all"
+                    title="Send (⌘↵)"
+                  >
+                    Send
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function EventCard({ event }: { event: Event }) {
   const { updateEvent, deleteEvent, duplicateEvent, setActiveEvent, activeEventId, enterPreviewMode } = useStore()
   const navigate = useNavigate()
@@ -968,6 +1137,8 @@ function EventCard({ event }: { event: Event }) {
             }
 
             <VendorAssignment event={event} />
+
+            <VendorChatPanel event={event} />
 
             {event.concepts.length > 0 && (
               <div className="px-5 pb-4 border-t border-stone-100">

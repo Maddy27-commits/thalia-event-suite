@@ -1206,6 +1206,24 @@ export const useStore = create<AppState>()(
         return copy.id
       },
 
+      // Event-level vendor chat — append-only audit trail keyed off vendorId.
+      // The store does not enforce vendorId membership; the UI is responsible
+      // for only offering vendors that are actually assigned to the event.
+      addVendorMessage: (eventId, msg) =>
+        set((s) => ({
+          events: s.events.map((e) =>
+            e.id === eventId ? { ...e, vendorMessages: [...(e.vendorMessages ?? []), msg] } : e
+          ),
+        })),
+      deleteVendorMessage: (eventId, msgId) =>
+        set((s) => ({
+          events: s.events.map((e) =>
+            e.id === eventId
+              ? { ...e, vendorMessages: (e.vendorMessages ?? []).filter((m) => m.id !== msgId) }
+              : e
+          ),
+        })),
+
       addVendor: (vendor) => set((s) => ({ vendors: [...s.vendors, vendor] })),
       updateVendor: (id, updates) =>
         set((s) => ({ vendors: s.vendors.map((v) => (v.id === id ? { ...v, ...updates } : v)) })),

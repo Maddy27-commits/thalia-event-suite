@@ -140,6 +140,25 @@ export interface Event {
   /** 6-digit code the client must enter alongside their email to access the portal.
    *  Generated when the event is created; planner shares it with the client out-of-band. */
   accessCode?: string
+  /** Per-event chat threads with assigned vendors. Only vendors in vendorIds
+   *  are eligible to participate; the planner adds messages on their behalf. */
+  vendorMessages?: VendorChatMessage[]
+}
+
+/**
+ * One message in the event-level vendor coordination chat. Threaded by vendorId
+ * — each vendor effectively gets their own conversation scoped to the event,
+ * separate from per-task discussions in the TaskDrawer.
+ */
+export interface VendorChatMessage {
+  id: string
+  /** Which vendor this conversation belongs to. Must be in event.vendorIds. */
+  vendorId: string
+  /** Who sent the message. Vendors don't have accounts yet — the planner
+   *  enters vendor messages manually on their behalf. */
+  author: 'planner' | 'vendor'
+  content: string
+  timestamp: string
 }
 
 // ─── Hierarchical checklist (3 levels) ───────────────────────────────────────
@@ -366,6 +385,10 @@ export interface AppState {
   updateEvent: (id: string, updates: Partial<Event>) => void
   deleteEvent: (id: string) => void
   duplicateEvent: (id: string) => string | null
+
+  // Event-level vendor chat
+  addVendorMessage: (eventId: string, msg: VendorChatMessage) => void
+  deleteVendorMessage: (eventId: string, msgId: string) => void
 
   // Vendors
   addVendor: (vendor: Vendor) => void

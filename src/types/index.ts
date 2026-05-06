@@ -1,5 +1,5 @@
 // ─── Roles ───────────────────────────────────────────────────────────────────
-export type Role = 'planner' | 'client'
+export type Role = 'planner' | 'client' | 'vendor'
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 export interface AuthSession {
@@ -8,6 +8,8 @@ export interface AuthSession {
   email: string
   /** For clients: the event ID they are locked to */
   clientEventId?: string
+  /** For vendors: their vendor record id (matched by email at sign-in). */
+  vendorId?: string
   /** Planner previewing the client portal for a specific event */
   isPlannerPreview: boolean
   /** ID of the event being previewed (planner preview mode) */

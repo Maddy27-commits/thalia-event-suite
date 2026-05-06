@@ -52,13 +52,19 @@ function MoodBoardGrid({ images, gradient }: { images: string[]; gradient: strin
 
 export function ConceptsPage() {
   const { updateConceptStatus } = useStore()
-  const { event } = useClientEvent()
+  const { event, stakeholder } = useClientEvent()
   const [selected, setSelected] = useState<EventConcept | null>(null)
   const [commentInput, setCommentInput] = useState('')
   const [actionType, setActionType] = useState<'approve' | 'reject' | 'revise' | null>(null)
   const [expanded, setExpanded] = useState<string | null>(null)
 
   if (!event) return null
+
+  // Role gate: only organisers can flip a concept's status. Contributors and
+  // viewers can browse and (in the next pass) comment, but the approve /
+  // reject / revise buttons are hidden from them. Planner preview gets
+  // organiser permissions automatically.
+  const canDecide = !stakeholder || stakeholder.role === 'organiser'
 
   // Pending first, then revised, then approved/rejected — so the inbox of
   // decisions you still need to make is always at the top.
@@ -197,27 +203,36 @@ export function ConceptsPage() {
                   </div>
                 )}
 
-                {/* CTA row */}
-                {concept.status === 'pending' ? (
-                  <div className="flex gap-2 pt-1">
-                    <Button variant="client" className="flex-1" icon={<Check size={15} />} onClick={() => handleAction(concept, 'approve')}>
-                      Approve this Concept
-                    </Button>
-                    <Button variant="outline" icon={<MessageSquare size={15} />} onClick={() => handleAction(concept, 'revise')}>
-                      Request Changes
-                    </Button>
-                    <Button variant="ghost" icon={<X size={15} />} onClick={() => handleAction(concept, 'reject')}>
-                      Decline
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-3">
-                    <Badge variant={sc.badge} dot>{sc.label}</Badge>
-                    {concept.status !== 'approved' && (
-                      <Button size="sm" variant="ghost" onClick={() => handleAction(concept, 'approve')}>
-                        Change to Approved
+                {/* CTA row — only organisers can decide; everyone else just sees the status. */}
+                {canDecide ? (
+                  concept.status === 'pending' ? (
+                    <div className="flex gap-2 pt-1">
+                      <Button variant="client" className="flex-1" icon={<Check size={15} />} onClick={() => handleAction(concept, 'approve')}>
+                        Approve this Concept
                       </Button>
-                    )}
+                      <Button variant="outline" icon={<MessageSquare size={15} />} onClick={() => handleAction(concept, 'revise')}>
+                        Request Changes
+                      </Button>
+                      <Button variant="ghost" icon={<X size={15} />} onClick={() => handleAction(concept, 'reject')}>
+                        Decline
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <Badge variant={sc.badge} dot>{sc.label}</Badge>
+                      {concept.status !== 'approved' && (
+                        <Button size="sm" variant="ghost" onClick={() => handleAction(concept, 'approve')}>
+                          Change to Approved
+                        </Button>
+                      )}
+                    </div>
+                  )
+                ) : (
+                  <div className="flex items-center gap-3 pt-1">
+                    <Badge variant={sc.badge} dot>{sc.label}</Badge>
+                    <p className="text-[11px] text-stone-400 italic">
+                      Only an organiser on this event can approve, request changes, or decline. You're signed in as a {stakeholder?.role ?? 'viewer'}.
+                    </p>
                   </div>
                 )}
               </CardBody>

@@ -2,6 +2,7 @@ import { CalendarDays, MapPin, Users, Sparkles, CheckCircle2, Clock, ArrowRight,
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../../store'
 import { useClientEvent } from '../../hooks/useClientEvent'
+import { PendingRemovalBanner } from '../../components/client/PendingRemovalBanner'
 import { Card, CardBody } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
@@ -28,7 +29,9 @@ const heroAccent: Record<string, string> = {
 export function ClientDashboard() {
   const { setActiveEvent, activeEventId } = useStore()
   const navigate = useNavigate()
-  const { event, matches } = useClientEvent()
+  const { event, matches, stakeholder } = useClientEvent()
+  // Visibility: planner can hide the budget for specific stakeholders.
+  const showBudget = !stakeholder?.hideBudget
 
   if (!event) {
     return (
@@ -51,6 +54,9 @@ export function ClientDashboard() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-5 sm:space-y-7 animate-fade-in">
+
+      {/* Pending stakeholder-removal approvals — only shown to organisers */}
+      <PendingRemovalBanner />
 
       {/* Multi-event picker */}
       {matches.length > 1 && (
@@ -237,10 +243,12 @@ export function ClientDashboard() {
               <p className="text-[10px] text-stone-400 uppercase tracking-wide font-medium">Theme</p>
               <p className="font-semibold text-stone-800 mt-0.5">{event.theme}</p>
             </div>
-            <div>
-              <p className="text-[10px] text-stone-400 uppercase tracking-wide font-medium">Budget</p>
-              <p className="font-semibold text-stone-800 mt-0.5">{formatCurrency(event.budget)}</p>
-            </div>
+            {showBudget && (
+              <div>
+                <p className="text-[10px] text-stone-400 uppercase tracking-wide font-medium">Budget</p>
+                <p className="font-semibold text-stone-800 mt-0.5">{formatCurrency(event.budget)}</p>
+              </div>
+            )}
             <div>
               <p className="text-[10px] text-stone-400 uppercase tracking-wide font-medium">Guests</p>
               <p className="font-semibold text-stone-800 mt-0.5">{event.guestCount}</p>

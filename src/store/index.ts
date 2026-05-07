@@ -1402,17 +1402,36 @@ export const useStore = create<AppState>()(
             e.id === eventId ? { ...e, concepts: [...e.concepts, concept] } : e
           ),
         })),
-      updateConceptStatus: (eventId, conceptId, status, comment) =>
+      updateConceptStatus: (eventId, conceptId, status, comment, by) =>
         set((s) => ({
           events: s.events.map((e) =>
             e.id === eventId
               ? {
                   ...e,
-                  concepts: e.concepts.map((c) =>
-                    c.id === conceptId
-                      ? { ...c, status: status as ConceptStatus, clientComment: comment ?? c.clientComment }
-                      : c
-                  ),
+                  concepts: e.concepts.map((c) => {
+                    if (c.id !== conceptId) return c
+                    // Append to per-stakeholder approval log if we know who voted.
+                    // Multi-stakeholder events get an audit trail; single-client
+                    // events keep working as before with no log entry.
+                    const log = by
+                      ? [
+                          ...(c.approvals ?? []),
+                          {
+                            stakeholderId: by.stakeholderId,
+                            stakeholderName: by.stakeholderName,
+                            status: status as ConceptStatus,
+                            comment,
+                            at: new Date().toISOString(),
+                          },
+                        ]
+                      : c.approvals
+                    return {
+                      ...c,
+                      status: status as ConceptStatus,
+                      clientComment: comment ?? c.clientComment,
+                      approvals: log,
+                    }
+                  }),
                 }
               : e
           ),

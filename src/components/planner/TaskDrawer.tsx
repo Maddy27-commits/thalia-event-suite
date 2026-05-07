@@ -62,6 +62,7 @@ export function TaskDrawer({ event, ceremony, sub, task, onClose }: TaskDrawerPr
     setTaskPhase, addTaskMessage, deleteTaskMessage, updateTaskMessage,
     addTaskOption, updateTaskOption, deleteTaskOption,
     toggleStageTask, updateStageTask, deleteStageTask,
+    addNotification,
   } = useStore()
 
   const [activePhase, setActivePhase] = useState<TaskPhase>(task.currentPhase)
@@ -89,6 +90,15 @@ export function TaskDrawer({ event, ceremony, sub, task, onClose }: TaskDrawerPr
   const [loadingStarters, setLoadingStarters] = useState(false)
   const [generatingOptions, setGeneratingOptions] = useState(false)
   const [optionsError, setOptionsError] = useState('')
+
+  // ── Audience + @mentions ──
+  // The audience picker scopes a message to specific stakeholders. 'all' (the
+  // default) means everyone with access to the event sees it. @mentions fire a
+  // notification to each mentioned stakeholder regardless of audience.
+  const stakeholders = (event.stakeholders ?? []).filter((s) => !s.removedAt)
+  const [audience, setAudience] = useState<'all' | string[]>('all')
+  const [mentions, setMentions] = useState<string[]>([])
+  const [showAudiencePicker, setShowAudiencePicker] = useState(false)
 
   useEffect(() => { setActivePhase(task.currentPhase) }, [task.currentPhase])
   useEffect(() => { setDateDraft(task.dueDate) }, [task.dueDate])
@@ -155,9 +165,35 @@ export function TaskDrawer({ event, ceremony, sub, task, onClose }: TaskDrawerPr
       content: text,
       timestamp: new Date().toISOString(),
       phase: activePhase,
+      audience: audience === 'all' || (Array.isArray(audience) && audience.length === 0) ? 'all' : audience,
+      mentions: mentions.length > 0 ? mentions : undefined,
     }
     addTaskMessage(event.id, ceremony.id, sub.id, task.id, message)
+
+    // Fan out a portal notification to every mentioned stakeholder so they
+    // see the @mention next time they sign in.
+    if (mentions.length > 0) {
+      mentions.forEach((sid) => {
+        const sh = stakeholders.find((s) => s.id === sid)
+        if (!sh) return
+        addNotification({
+          id: `n_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          recipientEmail: sh.email,
+          eventId: event.id,
+          kind: 'planner-message',
+          title: `You were mentioned in "${task.label}"`,
+          body: text.length > 120 ? text.slice(0, 120) + '…' : text,
+          link: '/client',
+          read: false,
+          createdAt: new Date().toISOString(),
+        })
+      })
+    }
+
     setDraft('')
+    setMentions([])
+    setAudience('all')
+    setShowAudiencePicker(false)
 
     if (extract && draftAuthor === 'client') {
       setExtracting(true)
@@ -647,6 +683,96 @@ export function TaskDrawer({ event, ceremony, sub, task, onClose }: TaskDrawerPr
             )}
           </div>
 
+          {/* Audience + @mentions row — only in Chat mode (not for private notes
+              which are planner-only by definition). */}
+          {draftChannel === 'in-app' && stakeholders.length > 1 && (
+            <div className="px-4 pt-3 pb-1 space-y-1.5">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <button
+                  onClick={() => setShowAudiencePicker((v) => !v)}
+                  className={cn(
+                    'text-[11px] font-semibold inline-flex items-center gap-1 px-2 py-1 rounded-full ring-1 transition-colors',
+                    audience === 'all'
+                      ? 'bg-stone-50 text-stone-600 ring-stone-200 hover:bg-stone-100'
+                      : 'bg-amber-50 text-amber-700 ring-amber-200',
+                  )}
+                  title="Restrict who can see this message (visibility, not security)"
+                >
+                  <Star size={10} />
+                  {audience === 'all' ? 'Everyone' : `${audience.length} only`}
+                </button>
+                {mentions.length > 0 && (
+                  <span className="text-[11px] text-stone-500">
+                    Mentioning: {mentions.map((id) => stakeholders.find((s) => s.id === id)?.name.split(' ')[0]).filter(Boolean).join(', ')}
+                  </span>
+                )}
+              </div>
+
+              {showAudiencePicker && (
+                <div className="rounded-lg bg-stone-50 ring-1 ring-stone-200 p-2 space-y-1">
+                  <p className="text-[10px] font-semibold text-stone-500 uppercase tracking-widest">
+                    Who can see this message
+                  </p>
+                  <label className="flex items-center gap-1.5 text-[11px] cursor-pointer">
+                    <input
+                      type="radio"
+                      name="audience"
+                      checked={audience === 'all'}
+                      onChange={() => setAudience('all')}
+                      className="w-3 h-3"
+                    />
+                    Everyone (default)
+                  </label>
+                  {stakeholders.map((sh) => {
+                    const checked = Array.isArray(audience) && audience.includes(sh.id)
+                    return (
+                      <label key={sh.id} className="flex items-center gap-1.5 text-[11px] cursor-pointer pl-4">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => {
+                            const current = Array.isArray(audience) ? audience : []
+                            const next = e.target.checked
+                              ? [...current, sh.id]
+                              : current.filter((id) => id !== sh.id)
+                            setAudience(next.length === 0 ? 'all' : next)
+                          }}
+                          className="w-3 h-3"
+                        />
+                        Only {sh.name} <span className="text-stone-400">({sh.role})</span>
+                      </label>
+                    )
+                  })}
+                  <p className="text-[10px] text-stone-400 italic pt-1">
+                    Restricting view is for discretion, not secrecy.
+                  </p>
+                </div>
+              )}
+
+              {/* @mention chips */}
+              <div className="flex flex-wrap gap-1.5">
+                <span className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest self-center">@</span>
+                {stakeholders.map((sh) => {
+                  const on = mentions.includes(sh.id)
+                  return (
+                    <button
+                      key={sh.id}
+                      onClick={() => setMentions((m) => on ? m.filter((id) => id !== sh.id) : [...m, sh.id])}
+                      className={cn(
+                        'text-[10px] font-semibold px-2 py-0.5 rounded-full ring-1 transition-colors',
+                        on
+                          ? 'bg-violet-100 text-violet-700 ring-violet-300'
+                          : 'bg-white text-stone-500 ring-stone-200 hover:bg-stone-50',
+                      )}
+                    >
+                      @{sh.name.split(' ')[0]}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Mode + sender row */}
           <div className="flex items-center gap-2 px-4 pt-3 pb-1">
             {/* Chat / Note tabs */}
@@ -824,6 +950,22 @@ function MessageBubble({ message, onDelete }: { message: TaskMessage; onDelete: 
           {isEmail && (
             <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md ring-1 font-semibold text-blue-600 bg-blue-50 ring-blue-200">
               <Mail size={9} /> Email
+            </span>
+          )}
+          {Array.isArray(message.audience) && message.audience.length > 0 && (
+            <span
+              className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md ring-1 font-semibold text-amber-700 bg-amber-50 ring-amber-200"
+              title={`Restricted view — visible only to ${message.audience.length} stakeholder${message.audience.length !== 1 ? 's' : ''}`}
+            >
+              Restricted
+            </span>
+          )}
+          {message.mentions && message.mentions.length > 0 && (
+            <span
+              className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md ring-1 font-semibold text-violet-700 bg-violet-50 ring-violet-200"
+              title={`@-mentioned ${message.mentions.length} stakeholder${message.mentions.length !== 1 ? 's' : ''}`}
+            >
+              @{message.mentions.length}
             </span>
           )}
           <span className="text-[10px] text-stone-500 font-medium">{message.authorName ?? author.label}</span>

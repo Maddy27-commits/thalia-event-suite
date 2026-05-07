@@ -264,6 +264,12 @@ export interface TaskMessage {
   phase: TaskPhase
   /** AI-extracted structured insights, if processed */
   insight?: TaskInsight
+  /** Audience override: 'all' (default) or an explicit allow-list of
+   *  stakeholder IDs that may see this message. Restriction is for
+   *  discretion, not security. */
+  audience?: 'all' | string[]
+  /** Stakeholder IDs explicitly @-mentioned. Drives notifications. */
+  mentions?: string[]
 }
 
 export type OptionStatus = 'proposed' | 'shortlisted' | 'rejected' | 'selected'
@@ -356,6 +362,18 @@ export interface EventConcept {
   images: string[]
   generatedAt: string
   sharedWithClient: boolean
+  /** Per-stakeholder approval log (audit trail for multi-stakeholder events).
+   *  Any organiser's "approve" flips the global status to 'approved'; this
+   *  array preserves who voted what so the planner can see history. */
+  approvals?: ConceptApproval[]
+}
+
+export interface ConceptApproval {
+  stakeholderId: string
+  stakeholderName: string
+  status: ConceptStatus
+  comment?: string
+  at: string
 }
 
 // ─── AI Generator Input ───────────────────────────────────────────────────────
@@ -492,7 +510,7 @@ export interface AppState {
 
   // Concepts
   addConcept: (eventId: string, concept: EventConcept) => void
-  updateConceptStatus: (eventId: string, conceptId: string, status: ConceptStatus, comment?: string) => void
+  updateConceptStatus: (eventId: string, conceptId: string, status: ConceptStatus, comment?: string, by?: { stakeholderId: string; stakeholderName: string }) => void
   deleteConcept: (eventId: string, conceptId: string) => void
 
   // Milestones

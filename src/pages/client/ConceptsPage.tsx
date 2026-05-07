@@ -83,7 +83,13 @@ export function ConceptsPage() {
   const submitAction = () => {
     if (!selected || !actionType) return
     const map: Record<string, ConceptStatus> = { approve: 'approved', reject: 'rejected', revise: 'revised' }
-    updateConceptStatus(event.id, selected.id, map[actionType] as ConceptStatus, commentInput)
+    updateConceptStatus(
+      event.id,
+      selected.id,
+      map[actionType] as ConceptStatus,
+      commentInput,
+      stakeholder ? { stakeholderId: stakeholder.id, stakeholderName: stakeholder.name } : undefined,
+    )
     setSelected(null)
     setActionType(null)
   }

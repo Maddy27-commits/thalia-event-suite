@@ -71,9 +71,16 @@ export function TaskDrawer({ event, ceremony, sub, task, onClose }: TaskDrawerPr
   // ── Compose new message form ──
   const [draft, setDraft] = useState('')
   const [draftChannel, setDraftChannel] = useState<MessageChannel>('in-app')
-  const [draftAuthor, setDraftAuthor] = useState<MessageAuthor>('client')
-  const [draftAuthorName, setDraftAuthorName] = useState(event.clientName.split(' ')[0] ?? '')
+  // Default: planner sends from their own account. The previous default of
+  // 'client' was confusing — it asked for a name on every send.
+  const [draftAuthor, setDraftAuthor] = useState<MessageAuthor>('planner')
+  // Only used when logging a message from someone else; pre-fills with the
+  // active stakeholder's name where possible so the planner doesn't retype.
+  const [draftAuthorName, setDraftAuthorName] = useState('')
   const [extracting, setExtracting] = useState(false)
+  // Advanced compose options ("Log message from someone else" + audience +
+  // mentions). Collapsed by default — most messages are just planner-sent.
+  const [showAdvanced, setShowAdvanced] = useState(false)
 
   // ── Add option form ──
   const [showAddOption, setShowAddOption] = useState(false)
@@ -607,28 +614,16 @@ export function TaskDrawer({ event, ceremony, sub, task, onClose }: TaskDrawerPr
             <div className="flex items-center justify-between mb-3">
               <div>
                 <h3 className="text-sm font-bold text-stone-900">Discussion</h3>
-                <p className="text-[11px] text-stone-400">In-app chat between you and your client, scoped to this task.</p>
+                <p className="text-[11px] text-stone-400">Conversation with your client, scoped to this task.</p>
               </div>
-
-              {/* Channel filter — only the 3 active channels */}
-              <div className="flex items-center gap-1">
-                {(['all', 'in-app', 'note', 'email'] as const).map(c => (
-                  <button
-                    key={c}
-                    onClick={() => setChannelFilter(c as MessageChannel | 'all')}
-                    className={cn(
-                      'text-[10px] px-2 py-1 rounded-md font-semibold uppercase tracking-wide transition-colors',
-                      channelFilter === c ? 'bg-stone-900 text-white' : 'text-stone-400 hover:bg-stone-100',
-                    )}
-                  >
-                    {c === 'all' ? 'All' : c === 'in-app' ? 'Chat' : CHANNEL_META[c].label}
-                  </button>
-                ))}
-              </div>
+              {/* Channel filter is intentionally hidden for now — most planners
+                  don't switch between Chat / Note / Email and the row of pills
+                  was creating noise. The underlying state is preserved so we
+                  can re-expose it as a "▾ Filters" affordance if needed. */}
             </div>
 
             {visibleMessages.length === 0 ? (
-              <p className="text-xs text-stone-400 italic py-3 px-1">No messages yet for this filter.</p>
+              <p className="text-xs text-stone-400 italic py-3 px-1">No messages yet — say hi to your client below.</p>
             ) : (
               <div className="space-y-3">
                 {visibleMessages.map(m => (
@@ -643,138 +638,18 @@ export function TaskDrawer({ event, ceremony, sub, task, onClose }: TaskDrawerPr
           </section>
         </div>
 
-        {/* ── Compose footer ── */}
+        {/* ── Compose footer (redesigned) ──────────────────────────────────
+         *
+         * One clean composer. Defaults send as "you" (the planner) over chat,
+         * which covers the 90% case in one keystroke. Everything else —
+         * logging a message someone else said, restricting who sees it,
+         * @-mentioning stakeholders — lives behind a single "More" toggle so
+         * it's there when you need it but never in the way.
+         * ─────────────────────────────────────────────────────────────── */}
         <div className="border-t border-stone-100 bg-white shrink-0">
-          {/* AI starter prompts row */}
-          <div className="flex items-start gap-2 px-4 pt-3">
-            <button
-              onClick={handleSuggestStarters}
-              disabled={loadingStarters}
-              className="flex items-center gap-1 text-[11px] font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 ring-1 ring-violet-200 px-2 py-1 rounded-full shrink-0 disabled:opacity-50 transition-all"
-              title="Get 3 phase-aware message ideas"
-            >
-              {loadingStarters ? <Loader2 size={11} className="animate-spin" /> : <Lightbulb size={11} />}
-              {starters.length > 0 ? 'Regenerate ideas' : 'Suggest starters'}
-            </button>
-            {starters.length > 0 ? (
-              <div className="flex gap-1.5 flex-wrap min-w-0">
-                {starters.map((s, i) => (
-                  <button
-                    key={i}
-                    onClick={() => { setDraft(s); setStarters([]) }}
-                    className="text-[11px] text-stone-700 bg-stone-50 hover:bg-violet-50 hover:text-violet-700 ring-1 ring-stone-200 hover:ring-violet-300 px-2 py-1 rounded-lg text-left max-w-[260px] truncate transition-all"
-                    title={s}
-                  >
-                    {s}
-                  </button>
-                ))}
-                <button
-                  onClick={() => setStarters([])}
-                  className="text-[11px] text-stone-400 hover:text-stone-600 px-1.5"
-                  title="Dismiss suggestions"
-                >
-                  <X size={11} />
-                </button>
-              </div>
-            ) : (
-              <p className="text-[11px] text-stone-400 italic self-center">
-                Stuck on what to write? Get AI-suggested message ideas for this phase.
-              </p>
-            )}
-          </div>
 
-          {/* Audience + @mentions row — only in Chat mode (not for private notes
-              which are planner-only by definition). */}
-          {draftChannel === 'in-app' && stakeholders.length > 1 && (
-            <div className="px-4 pt-3 pb-1 space-y-1.5">
-              <div className="flex flex-wrap items-center gap-1.5">
-                <button
-                  onClick={() => setShowAudiencePicker((v) => !v)}
-                  className={cn(
-                    'text-[11px] font-semibold inline-flex items-center gap-1 px-2 py-1 rounded-full ring-1 transition-colors',
-                    audience === 'all'
-                      ? 'bg-stone-50 text-stone-600 ring-stone-200 hover:bg-stone-100'
-                      : 'bg-amber-50 text-amber-700 ring-amber-200',
-                  )}
-                  title="Restrict who can see this message (visibility, not security)"
-                >
-                  <Star size={10} />
-                  {audience === 'all' ? 'Everyone' : `${audience.length} only`}
-                </button>
-                {mentions.length > 0 && (
-                  <span className="text-[11px] text-stone-500">
-                    Mentioning: {mentions.map((id) => stakeholders.find((s) => s.id === id)?.name.split(' ')[0]).filter(Boolean).join(', ')}
-                  </span>
-                )}
-              </div>
-
-              {showAudiencePicker && (
-                <div className="rounded-lg bg-stone-50 ring-1 ring-stone-200 p-2 space-y-1">
-                  <p className="text-[10px] font-semibold text-stone-500 uppercase tracking-widest">
-                    Who can see this message
-                  </p>
-                  <label className="flex items-center gap-1.5 text-[11px] cursor-pointer">
-                    <input
-                      type="radio"
-                      name="audience"
-                      checked={audience === 'all'}
-                      onChange={() => setAudience('all')}
-                      className="w-3 h-3"
-                    />
-                    Everyone (default)
-                  </label>
-                  {stakeholders.map((sh) => {
-                    const checked = Array.isArray(audience) && audience.includes(sh.id)
-                    return (
-                      <label key={sh.id} className="flex items-center gap-1.5 text-[11px] cursor-pointer pl-4">
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={(e) => {
-                            const current = Array.isArray(audience) ? audience : []
-                            const next = e.target.checked
-                              ? [...current, sh.id]
-                              : current.filter((id) => id !== sh.id)
-                            setAudience(next.length === 0 ? 'all' : next)
-                          }}
-                          className="w-3 h-3"
-                        />
-                        Only {sh.name} <span className="text-stone-400">({sh.role})</span>
-                      </label>
-                    )
-                  })}
-                  <p className="text-[10px] text-stone-400 italic pt-1">
-                    Restricting view is for discretion, not secrecy.
-                  </p>
-                </div>
-              )}
-
-              {/* @mention chips */}
-              <div className="flex flex-wrap gap-1.5">
-                <span className="text-[10px] font-semibold text-stone-400 uppercase tracking-widest self-center">@</span>
-                {stakeholders.map((sh) => {
-                  const on = mentions.includes(sh.id)
-                  return (
-                    <button
-                      key={sh.id}
-                      onClick={() => setMentions((m) => on ? m.filter((id) => id !== sh.id) : [...m, sh.id])}
-                      className={cn(
-                        'text-[10px] font-semibold px-2 py-0.5 rounded-full ring-1 transition-colors',
-                        on
-                          ? 'bg-violet-100 text-violet-700 ring-violet-300'
-                          : 'bg-white text-stone-500 ring-stone-200 hover:bg-stone-50',
-                      )}
-                    >
-                      @{sh.name.split(' ')[0]}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Mode + sender row */}
-          <div className="flex items-center gap-2 px-4 pt-3 pb-1">
+          {/* Top row: mode tabs + AI starters + More toggle */}
+          <div className="flex items-center gap-2 px-4 pt-3 pb-1.5 flex-wrap">
             {/* Chat / Note tabs */}
             <div className="flex items-center gap-1 bg-stone-50 rounded-xl p-0.5 ring-1 ring-stone-100">
               {(['in-app', 'note'] as MessageChannel[]).map(c => {
@@ -799,25 +674,194 @@ export function TaskDrawer({ event, ceremony, sub, task, onClose }: TaskDrawerPr
               })}
             </div>
 
-            {/* Sender */}
-            <select
-              value={draftAuthor}
-              onChange={e => setDraftAuthor(e.target.value as MessageAuthor)}
-              className="ml-auto text-xs border border-stone-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-brand-400 font-medium text-stone-700"
-            >
-              <option value="planner">You (planner)</option>
-              <option value="client">Client</option>
-              <option value="vendor">Vendor</option>
-            </select>
-            {draftAuthor === 'client' && (
-              <input
-                value={draftAuthorName}
-                onChange={e => setDraftAuthorName(e.target.value)}
-                placeholder="Name"
-                className="text-xs border border-stone-200 rounded-lg px-2 py-1.5 w-24 focus:outline-none focus:ring-2 focus:ring-brand-400"
-              />
+            {/* AI starters trigger — only meaningful for chat */}
+            {draftChannel === 'in-app' && (
+              <button
+                onClick={handleSuggestStarters}
+                disabled={loadingStarters}
+                className="flex items-center gap-1 text-[11px] font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 ring-1 ring-violet-200 px-2 py-1 rounded-full disabled:opacity-50 transition-all"
+                title="Get 3 phase-aware message ideas"
+              >
+                {loadingStarters ? <Loader2 size={11} className="animate-spin" /> : <Lightbulb size={11} />}
+                {starters.length > 0 ? 'Regenerate' : 'Suggest reply'}
+              </button>
+            )}
+
+            <span className="ml-auto" />
+
+            {/* Single "More" toggle for advanced compose options */}
+            {draftChannel === 'in-app' && (
+              <button
+                onClick={() => setShowAdvanced(v => !v)}
+                className={cn(
+                  'text-[11px] font-medium px-2 py-1 rounded-md transition-colors',
+                  showAdvanced || draftAuthor !== 'planner' || (Array.isArray(audience) && audience.length > 0) || mentions.length > 0
+                    ? 'bg-stone-100 text-stone-700 ring-1 ring-stone-200'
+                    : 'text-stone-400 hover:text-stone-600',
+                )}
+                title="Log a message from someone else, mention stakeholders, or restrict view"
+              >
+                {showAdvanced ? '▾ Less' : '▾ More'}
+              </button>
             )}
           </div>
+
+          {/* AI starter chips — appears under the top row when results loaded */}
+          {starters.length > 0 && (
+            <div className="px-4 pb-1.5 flex gap-1.5 flex-wrap items-center">
+              <span className="text-[10px] font-semibold text-violet-600 uppercase tracking-widest">Ideas</span>
+              {starters.map((s, i) => (
+                <button
+                  key={i}
+                  onClick={() => { setDraft(s); setStarters([]) }}
+                  className="text-[11px] text-stone-700 bg-stone-50 hover:bg-violet-50 hover:text-violet-700 ring-1 ring-stone-200 hover:ring-violet-300 px-2 py-1 rounded-lg text-left max-w-[260px] truncate transition-all"
+                  title={s}
+                >
+                  {s}
+                </button>
+              ))}
+              <button
+                onClick={() => setStarters([])}
+                className="text-[11px] text-stone-400 hover:text-stone-600 px-1.5"
+                title="Dismiss suggestions"
+              >
+                <X size={11} />
+              </button>
+            </div>
+          )}
+
+          {/* Advanced compose panel — collapsible */}
+          {showAdvanced && draftChannel === 'in-app' && (
+            <div className="mx-4 mb-2 rounded-xl bg-stone-50 ring-1 ring-stone-200 p-3 space-y-3 text-xs">
+              {/* Log on behalf */}
+              <div>
+                <p className="text-[10px] font-semibold text-stone-500 uppercase tracking-widest mb-1.5">
+                  Send as
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    onClick={() => { setDraftAuthor('planner'); setDraftAuthorName('') }}
+                    className={cn(
+                      'text-[11px] font-semibold px-2.5 py-1 rounded-full ring-1 transition-colors',
+                      draftAuthor === 'planner'
+                        ? 'bg-brand-100 text-brand-700 ring-brand-300'
+                        : 'bg-white text-stone-500 ring-stone-200 hover:bg-stone-50',
+                    )}
+                  >
+                    You (planner)
+                  </button>
+                  {/* Stakeholder pickers — replace the manual name input */}
+                  {stakeholders.map((sh) => (
+                    <button
+                      key={sh.id}
+                      onClick={() => { setDraftAuthor('client'); setDraftAuthorName(sh.name) }}
+                      className={cn(
+                        'text-[11px] font-semibold px-2.5 py-1 rounded-full ring-1 transition-colors',
+                        draftAuthor === 'client' && draftAuthorName === sh.name
+                          ? 'bg-rose-100 text-rose-700 ring-rose-300'
+                          : 'bg-white text-stone-500 ring-stone-200 hover:bg-stone-50',
+                      )}
+                      title={`Log a message from ${sh.name}`}
+                    >
+                      {sh.name}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => { setDraftAuthor('vendor'); setDraftAuthorName('Vendor') }}
+                    className={cn(
+                      'text-[11px] font-semibold px-2.5 py-1 rounded-full ring-1 transition-colors',
+                      draftAuthor === 'vendor'
+                        ? 'bg-amber-100 text-amber-700 ring-amber-300'
+                        : 'bg-white text-stone-500 ring-stone-200 hover:bg-stone-50',
+                    )}
+                  >
+                    A vendor
+                  </button>
+                </div>
+                {draftAuthor !== 'planner' && (
+                  <p className="text-[10px] text-stone-400 mt-1.5 italic">
+                    Use this to log conversations that happened off-platform (e.g. a phone call).
+                  </p>
+                )}
+              </div>
+
+              {/* @mentions — only when there's more than one stakeholder */}
+              {stakeholders.length > 1 && (
+                <div>
+                  <p className="text-[10px] font-semibold text-stone-500 uppercase tracking-widest mb-1.5">
+                    @-mention to notify
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {stakeholders.map((sh) => {
+                      const on = mentions.includes(sh.id)
+                      return (
+                        <button
+                          key={sh.id}
+                          onClick={() => setMentions((m) => on ? m.filter((id) => id !== sh.id) : [...m, sh.id])}
+                          className={cn(
+                            'text-[11px] font-semibold px-2.5 py-1 rounded-full ring-1 transition-colors',
+                            on
+                              ? 'bg-violet-100 text-violet-700 ring-violet-300'
+                              : 'bg-white text-stone-500 ring-stone-200 hover:bg-stone-50',
+                          )}
+                        >
+                          @{sh.name.split(' ')[0]}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Restrict view — only when there's more than one stakeholder */}
+              {stakeholders.length > 1 && (
+                <div>
+                  <p className="text-[10px] font-semibold text-stone-500 uppercase tracking-widest mb-1.5">
+                    Visible to
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      onClick={() => setAudience('all')}
+                      className={cn(
+                        'text-[11px] font-semibold px-2.5 py-1 rounded-full ring-1 transition-colors',
+                        audience === 'all'
+                          ? 'bg-emerald-100 text-emerald-700 ring-emerald-300'
+                          : 'bg-white text-stone-500 ring-stone-200 hover:bg-stone-50',
+                      )}
+                    >
+                      Everyone
+                    </button>
+                    {stakeholders.map((sh) => {
+                      const on = Array.isArray(audience) && audience.includes(sh.id)
+                      return (
+                        <button
+                          key={sh.id}
+                          onClick={() => {
+                            const current = Array.isArray(audience) ? audience : []
+                            const next = on ? current.filter((id) => id !== sh.id) : [...current, sh.id]
+                            setAudience(next.length === 0 ? 'all' : next)
+                          }}
+                          className={cn(
+                            'text-[11px] font-semibold px-2.5 py-1 rounded-full ring-1 transition-colors',
+                            on
+                              ? 'bg-amber-100 text-amber-700 ring-amber-300'
+                              : 'bg-white text-stone-500 ring-stone-200 hover:bg-stone-50',
+                          )}
+                        >
+                          Only {sh.name.split(' ')[0]}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {Array.isArray(audience) && audience.length > 0 && (
+                    <p className="text-[10px] text-stone-400 mt-1.5 italic">
+                      Restricting view is for discretion, not secrecy.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Textarea + send */}
           <div className="flex gap-2 items-end px-4 pb-3">
@@ -827,43 +871,35 @@ export function TaskDrawer({ event, ceremony, sub, task, onClose }: TaskDrawerPr
               placeholder={
                 draftChannel === 'note'
                   ? 'Private planner note (not visible to client)…'
-                  : draftAuthor === 'client'
-                    ? `${draftAuthorName || event.clientName} says…`
-                    : 'Type a message…'
+                  : draftAuthor === 'planner'
+                    ? 'Type a message…'
+                    : `Logging on behalf of ${draftAuthorName || (draftAuthor === 'vendor' ? 'a vendor' : 'someone else')}…`
               }
               rows={2}
               className="flex-1 text-sm border border-stone-200 rounded-2xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none bg-stone-50"
               onKeyDown={e => {
                 if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
                   e.preventDefault()
+                  // AI insight extraction only when logging client-side input
                   handleAddMessage(draftAuthor === 'client' && draftChannel === 'in-app')
                 }
               }}
             />
             <div className="flex flex-col gap-1.5 shrink-0">
               <button
-                onClick={() => handleAddMessage(false)}
-                disabled={!draft.trim()}
+                onClick={() => handleAddMessage(draftAuthor === 'client' && draftChannel === 'in-app')}
+                disabled={!draft.trim() || extracting}
                 className={cn(
-                  'flex items-center justify-center gap-1.5 text-xs font-semibold px-3 py-2.5 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all',
+                  'flex items-center justify-center gap-1.5 text-xs font-semibold px-4 py-2.5 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all min-w-[80px]',
                   draftChannel === 'note'
                     ? 'bg-amber-100 text-amber-700 hover:bg-amber-200'
                     : 'bg-brand-500 text-white hover:bg-brand-600 shadow-sm',
                 )}
                 title="Send (⌘↵)"
               >
-                <Send size={13} />
+                {extracting ? <Loader2 size={12} className="animate-spin" /> : <Send size={13} />}
+                <span>Send</span>
               </button>
-              {draftAuthor === 'client' && draftChannel === 'in-app' && (
-                <button
-                  onClick={() => handleAddMessage(true)}
-                  disabled={!draft.trim() || extracting}
-                  className="flex items-center justify-center gap-1 text-xs font-semibold text-violet-600 hover:text-violet-700 bg-violet-50 hover:bg-violet-100 px-2 py-2 rounded-xl disabled:opacity-40 transition-colors"
-                  title="Send and extract AI insights"
-                >
-                  {extracting ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
-                </button>
-              )}
             </div>
           </div>
         </div>
@@ -912,17 +948,20 @@ const PHASE_INTRO: Record<TaskPhase, { title: string; body: string; emoji: strin
   },
 }
 
+/**
+ * Compact one-line phase explainer. The phase tabs already display the
+ * phase name; this just adds a short tip for what to do in the current
+ * phase without taking up a banner-sized chunk of vertical space.
+ */
 function PhaseIntroCard({ phase }: { phase: TaskPhase }) {
   const intro = PHASE_INTRO[phase]
   return (
-    <div className={cn('rounded-2xl bg-gradient-to-br p-4 ring-1', intro.gradient, intro.ring)}>
-      <div className="flex items-start gap-3">
-        <span className="text-2xl shrink-0">{intro.emoji}</span>
-        <div className="min-w-0">
-          <p className="text-sm font-bold text-stone-900">{intro.title}</p>
-          <p className="text-xs text-stone-600 mt-0.5 leading-relaxed">{intro.body}</p>
-        </div>
-      </div>
+    <div className={cn('rounded-xl bg-gradient-to-r px-3 py-2 ring-1 flex items-center gap-2.5', intro.gradient, intro.ring)}>
+      <span className="text-base shrink-0">{intro.emoji}</span>
+      <p className="text-[11px] text-stone-700 leading-snug min-w-0">
+        <span className="font-bold text-stone-900">{intro.title}.</span>{' '}
+        <span className="text-stone-600">{intro.body}</span>
+      </p>
     </div>
   )
 }

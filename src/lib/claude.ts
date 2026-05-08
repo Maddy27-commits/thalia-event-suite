@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import type { ConceptGeneratorInput, EventConcept, TaskInsight } from '../types'
-import { getImagesForConcept } from './images'
+import { fetchMoodboardImages } from './images'
 import {
   parseAIResponse, conceptArraySchema, taskInsightSchema,
   starterPromptsSchema, optionSuggestionsSchema,
@@ -108,9 +108,15 @@ Rules:
   // preamble, and shape drift (missing fields fall back to safe defaults).
   const parsed = parseAIResponse(text, conceptArraySchema)
 
-  parsed.forEach((raw, i) => {
+  // Fetch moodboards for each concept in parallel so the user sees them
+  // populate as soon as Unsplash returns. Promise.all keeps the loop tidy.
+  const conceptsWithImages = await Promise.all(parsed.map(async (raw) => {
     const styleKw = raw.styleKeywords ?? input.style
-    const images = getImagesForConcept(raw.mood, input.eventType, styleKw, raw.colorPalette)
+    const images = await fetchMoodboardImages(raw.mood, input.eventType, styleKw, raw.colorPalette)
+    return { raw, styleKw, images }
+  }))
+
+  conceptsWithImages.forEach(({ raw, images }, i) => {
 
     const concept: EventConcept = {
       id: `c_${Date.now()}_${i}`,
@@ -257,8 +263,25 @@ export interface StarterContext {
   recentMessages: { author: string; content: string }[]
 }
 
-/** Local fallback starters when no AI key is available — phase-aware but generic. */
+/**
+ * Local fallback starters when no AI key is available — phase-aware AND
+ * context-aware (different suggestions when the planner spoke last vs when
+ * the client spoke last, so we never suggest the planner reply to themselves).
+ */
 function localStarters(ctx: StarterContext): string[] {
+  const last = ctx.recentMessages[ctx.recentMessages.length - 1]
+  const plannerSpokeLast = !!last && /^(you|planner)$/i.test(last.author.trim())
+
+  // Planner just spoke — suggest gentle nudges / new angles, not replies.
+  if (plannerSpokeLast) {
+    return [
+      `Just following up on my last note — any thoughts whenever you have a moment?`,
+      `Happy to jump on a quick call if that's easier than typing.`,
+      `If it helps, I can pull together a quick comparison while you decide.`,
+    ]
+  }
+
+  // Client/vendor spoke last (or no messages yet) — suggest planner replies.
   switch (ctx.phase) {
     case 'briefing':
       return [
@@ -274,21 +297,21 @@ function localStarters(ctx: StarterContext): string[] {
       ]
     case 'client-review':
       return [
-        `Have you had a chance to look through the options I shared?`,
-        `Which one feels closest to your vision so far?`,
-        `Anything you'd tweak about your top choice?`,
+        `Glad to hear your reaction — which one feels closest to your vision?`,
+        `Want me to dig deeper into any of these options before you decide?`,
+        `Happy to bring revised versions if anything's not quite right.`,
       ]
     case 'revisions':
       return [
-        `Based on your feedback, here's what I'm adjusting — does this sound right?`,
+        `Got it — based on your feedback, here's what I'm adjusting.`,
         `Should I bring back a revised proposal, or are we close to deciding?`,
-        `Any additional concerns surfaced since we last spoke?`,
+        `Any concerns I should iron out before we lock this in?`,
       ]
     case 'final':
       return [
-        `Just confirming — we're locked in on this. Anything else you need from me?`,
-        `Want me to send a final summary email for your records?`,
-        `Excited to move forward! Anything else you'd like to discuss?`,
+        `Confirmed on my end. Want me to send a final summary for your records?`,
+        `All locked in — let me know if anything changes between now and the day.`,
+        `Excited to move forward — anything else you need from me?`,
       ]
   }
 }
@@ -302,8 +325,18 @@ export async function suggestDiscussionStarters(
   apiKey: string,
 ): Promise<string[]> {
   const recent = ctx.recentMessages.slice(-6).map((m) => `${m.author}: ${m.content}`).join('\n') || '(no messages yet)'
+  const lastMsg = ctx.recentMessages[ctx.recentMessages.length - 1]
+  // Detect "the planner just spoke last" so we don't suggest a reply to the
+  // planner's own message. Common author labels: 'You', 'Planner'.
+  const plannerSpokeLast = !!lastMsg && /^(you|planner)$/i.test(lastMsg.author.trim())
 
-  const prompt = `You are an experienced event planner helping a colleague draft messages to their client.
+  const guidance = !lastMsg
+    ? 'There are no messages yet. Suggest a warm opening question that gets the client talking about their preferences for this task.'
+    : plannerSpokeLast
+      ? `The PLANNER spoke last (their message was: "${lastMsg.content.slice(0, 200)}"). DO NOT suggest replies that answer the planner's own question — that would be the planner replying to themselves. Instead suggest natural follow-ups: a polite nudge if the client hasn't replied yet, a clarifying question if the previous message was complex, or a fresh angle that moves the conversation forward.`
+      : `The CLIENT/VENDOR spoke last (their message was: "${lastMsg.content.slice(0, 200)}"). Suggest planner replies that acknowledge their input and move the decision forward.`
+
+  const prompt = `You are an experienced event planner helping a colleague draft their NEXT message in a chat thread with a client.
 
 Context:
 - Event type: ${ctx.eventType}
@@ -315,7 +348,11 @@ Context:
 Recent messages (oldest first):
 ${recent}
 
-Suggest exactly 3 short message drafts the planner could send next, written in the planner's voice (warm, professional, concise). Each one should be different in approach (e.g. one open question, one specific question, one update/proposal). Tailor them to the current planning phase.
+CRITICAL CONTEXT: ${guidance}
+
+The drafts you generate will be SENT BY THE PLANNER. They must read as something the planner would naturally say next, given who spoke last.
+
+Suggest exactly 3 short message drafts the planner could send next, written in the planner's voice (warm, professional, concise). Each one should be different in approach.
 
 Return ONLY a JSON array of 3 strings — no markdown, no commentary. Each string is the message body, ≤25 words.`
 

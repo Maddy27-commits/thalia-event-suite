@@ -205,6 +205,46 @@ export function getImagesForConcept(
 }
 
 /**
+ * Fetch query-relevant moodboard photos via the /api/images Pages Function
+ * (which proxies Unsplash Search). Falls back to the curated bank if the
+ * server-side key isn't configured or the request fails.
+ *
+ * Building the query: we combine the concept's mood + dominant colours +
+ * event type into a single search phrase. Unsplash returns landscape
+ * photos that genuinely reflect the prompt, so "butter yellow + romantic"
+ * surfaces actual yellow romantic shots instead of a banana.
+ */
+export async function fetchMoodboardImages(
+  mood: string,
+  eventType: string,
+  style: string[],
+  colorPalette: string[] = [],
+  count = 6,
+): Promise<string[]> {
+  const query = [
+    eventType,
+    mood,
+    ...colorPalette.slice(0, 2),
+    ...style.slice(0, 2),
+  ].filter(Boolean).join(' ').trim()
+
+  try {
+    const res = await fetch(`/api/images?q=${encodeURIComponent(query)}&n=${count}`, {
+      headers: { 'X-Thalia-Client': 'thalia-web' },
+    })
+    if (!res.ok) throw new Error(`status ${res.status}`)
+    const data = (await res.json()) as { photos?: { url: string }[] }
+    const urls = (data.photos ?? []).map((p) => p.url).filter(Boolean)
+    if (urls.length >= 3) return urls.slice(0, count)
+    // Too few results — augment with curated fallback so we never show a sparse moodboard
+    const fallback = getImagesForConcept(mood, eventType, style, colorPalette)
+    return [...urls, ...fallback].slice(0, count)
+  } catch {
+    return getImagesForConcept(mood, eventType, style, colorPalette)
+  }
+}
+
+/**
  * Pick a single image for an individual decor item. Uses item name keywords
  * to bias which sub-bank we pull from (e.g. "Floral Arch" → floral; "Lighting" → lighting).
  */

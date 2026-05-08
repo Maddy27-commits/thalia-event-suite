@@ -5,9 +5,12 @@ import { Badge } from '../../components/ui/Badge'
 import { formatDate, daysUntil, completionPercent } from '../../lib/utils'
 
 export function ProgressPage() {
-  const { event } = useClientEvent()
+  const { event, stakeholder } = useClientEvent()
 
   if (!event) return null
+
+  // Visibility: planner can hide specific stages from a stakeholder.
+  const hidden = new Set(stakeholder?.hiddenStageIds ?? [])
 
   const progress       = completionPercent(event.milestones)
   const completedCount = event.milestones.filter(m => m.completed).length
@@ -175,7 +178,9 @@ export function ProgressPage() {
           </div>
 
           {event.ceremonies.map((ceremony) => {
-            const allTasks     = ceremony.stages.flatMap(s => s.tasks)
+            // Filter out stages the planner has hidden from this stakeholder
+            const visibleStages = ceremony.stages.filter((s) => !hidden.has(s.id))
+            const allTasks     = visibleStages.flatMap(s => s.tasks)
             const totalTasks   = allTasks.length || 1
             const doneTasks    = allTasks.filter(t => t.completed).length
             const ceremonyPct  = Math.round((doneTasks / totalTasks) * 100)
@@ -211,9 +216,9 @@ export function ProgressPage() {
                 </div>
 
                 {/* Sub-category grid */}
-                {ceremony.stages.length > 0 && (
+                {visibleStages.length > 0 && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pl-3">
-                    {ceremony.stages.map(sub => {
+                    {visibleStages.map(sub => {
                       const total = sub.tasks.length || 1
                       const done  = sub.tasks.filter(t => t.completed).length
                       const pct   = sub.tasks.length === 0 ? 0 : Math.round((done / total) * 100)

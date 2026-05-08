@@ -800,6 +800,43 @@ function VendorAssignment({ event }: { event: Event }) {
 }
 
 // ─── Single event card ─────────────────────────────────────────────────────────
+// ─── Concept Approval Log ────────────────────────────────────────────────────
+// Audit trail of who voted what on each concept. Multi-stakeholder events get
+// real value here ("the bride approved, the groom requested changes"); single-
+// client events also benefit from a timestamped trail of decisions.
+function ConceptApprovalLog({ event }: { event: Event }) {
+  const conceptsWithVotes = event.concepts.filter((c) => (c.approvals?.length ?? 0) > 0)
+  if (conceptsWithVotes.length === 0) return null
+  const voteColour: Record<string, string> = {
+    approved: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+    rejected: 'bg-red-50 text-red-700 ring-red-200',
+    revised:  'bg-amber-50 text-amber-700 ring-amber-200',
+    pending:  'bg-stone-50 text-stone-600 ring-stone-200',
+  }
+
+  return (
+    <div className="mt-3 rounded-2xl bg-stone-50/60 ring-1 ring-stone-100 p-3 space-y-2">
+      <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Stakeholder votes</p>
+      {conceptsWithVotes.map((c) => (
+        <div key={c.id} className="bg-white rounded-xl ring-1 ring-stone-100 px-3 py-2">
+          <p className="text-xs font-semibold text-stone-700 truncate">{c.title}</p>
+          <div className="flex flex-wrap gap-1.5 mt-1.5">
+            {c.approvals!.map((a, i) => (
+              <span
+                key={i}
+                className={`text-[10px] inline-flex items-center gap-1 px-2 py-0.5 rounded-full ring-1 font-semibold capitalize ${voteColour[a.status] ?? voteColour.pending}`}
+                title={a.comment ? `${a.stakeholderName}: "${a.comment}"` : `${a.stakeholderName} on ${new Date(a.at).toLocaleString()}`}
+              >
+                {a.stakeholderName.split(' ')[0]} · {a.status}
+              </span>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // ─── Stakeholder Panel ───────────────────────────────────────────────────────
 // Multi-client management. Replaces the single-client access code panel.
 // Displays the list of stakeholders, lets the planner add new ones, edit
@@ -818,6 +855,13 @@ function StakeholderPanel({ event }: { event: Event }) {
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [showAdd, setShowAdd] = useState(false)
   const [draft, setDraft] = useState({ name: '', email: '', role: 'organiser' as Stakeholder['role'] })
+  // Which stakeholder's "restrict view" editor is currently open
+  const [editingViewId, setEditingViewId] = useState<string | null>(null)
+
+  // Flat list of all stages across every ceremony — used by the hide-stages picker
+  const allStages = (event.ceremonies ?? []).flatMap((c) =>
+    c.stages.map((s) => ({ id: s.id, label: `${c.emoji} ${c.name} · ${s.emoji} ${s.name}` }))
+  )
 
   const copyAccessDetails = async (sh: Stakeholder) => {
     const text = `Hi ${sh.name}, here are your sign-in details for "${event.name}" on Thalia:\n\n  Email:       ${sh.email}\n  Access code: ${sh.accessCode}\n\nSign in at https://thalia-event-suite.pages.dev/auth/client`
@@ -906,44 +950,116 @@ function StakeholderPanel({ event }: { event: Event }) {
         )}
         {activeStakeholders.map((sh) => {
           const hasPending = pendingRemovals.some((a) => a.payload.stakeholderId === sh.id)
+          const editing = editingViewId === sh.id
+          const restrictionCount = (sh.hiddenStageIds?.length ?? 0) + (sh.hideBudget ? 1 : 0)
           return (
-            <div key={sh.id} className={`flex items-center gap-3 bg-white ring-1 ring-stone-100 rounded-xl px-3 py-2 group ${hasPending ? 'opacity-60' : ''}`}>
-              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-brand-200 to-brand-400 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
-                {sh.name.split(/\s+/).slice(0, 2).map((p) => p[0]?.toUpperCase()).join('')}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <p className="text-sm font-semibold text-stone-800 truncate">{sh.name}</p>
-                  <select
-                    value={sh.role}
-                    onChange={(e) => updateStakeholder(event.id, sh.id, { role: e.target.value as Stakeholder['role'] })}
-                    className="text-[10px] font-semibold border border-stone-200 rounded-md px-1.5 py-0.5 bg-stone-50 focus:outline-none focus:ring-1 focus:ring-sage-400"
-                  >
-                    <option value="organiser">Organiser</option>
-                    <option value="contributor">Contributor</option>
-                    <option value="viewer">Viewer</option>
-                  </select>
+            <div key={sh.id} className={`bg-white ring-1 ring-stone-100 rounded-xl px-3 py-2 group ${hasPending ? 'opacity-60' : ''}`}>
+              <div className="flex items-center gap-3">
+                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-brand-200 to-brand-400 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
+                  {sh.name.split(/\s+/).slice(0, 2).map((p) => p[0]?.toUpperCase()).join('')}
                 </div>
-                <p className="text-[10px] text-stone-400 truncate">{sh.email} · code <span className="font-mono">{sh.accessCode}</span></p>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-sm font-semibold text-stone-800 truncate">{sh.name}</p>
+                    <select
+                      value={sh.role}
+                      onChange={(e) => updateStakeholder(event.id, sh.id, { role: e.target.value as Stakeholder['role'] })}
+                      className="text-[10px] font-semibold border border-stone-200 rounded-md px-1.5 py-0.5 bg-stone-50 focus:outline-none focus:ring-1 focus:ring-sage-400"
+                    >
+                      <option value="organiser">Organiser</option>
+                      <option value="contributor">Contributor</option>
+                      <option value="viewer">Viewer</option>
+                    </select>
+                    {restrictionCount > 0 && (
+                      <span
+                        className="text-[9px] font-bold bg-amber-100 text-amber-700 ring-1 ring-amber-200 px-1.5 py-0.5 rounded-full"
+                        title="Restricted-view items active"
+                      >
+                        {restrictionCount} hidden
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-stone-400 truncate">{sh.email} · code <span className="font-mono">{sh.accessCode}</span></p>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={() => setEditingViewId(editing ? null : sh.id)}
+                    className={`text-[10px] font-semibold px-2 py-1 rounded-md ring-1 flex items-center gap-1 transition-colors ${
+                      editing ? 'bg-amber-100 text-amber-800 ring-amber-300' : 'bg-stone-50 text-stone-600 ring-stone-200 hover:bg-stone-100'
+                    }`}
+                    title="Restrict what this person can see"
+                  >
+                    <Eye size={10} />
+                    {editing ? 'Done' : 'Restrict view'}
+                  </button>
+                  <button
+                    onClick={() => copyAccessDetails(sh)}
+                    className="text-[10px] font-semibold px-2 py-1 rounded-md bg-sage-50 text-sage-700 hover:bg-sage-100 ring-1 ring-sage-200 flex items-center gap-1"
+                    title="Copy a one-paste sign-in message"
+                  >
+                    {copiedId === sh.id ? <Check size={10} /> : <Copy size={10} />}
+                    {copiedId === sh.id ? 'Copied' : 'Copy access'}
+                  </button>
+                  <button
+                    onClick={() => handleRequestRemove(sh)}
+                    disabled={hasPending}
+                    className="w-6 h-6 rounded-full bg-red-50 hover:bg-red-100 text-red-400 flex items-center justify-center disabled:opacity-30 transition-colors"
+                    title="Request removal (needs another organiser to approve)"
+                  >
+                    <Trash2 size={10} />
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-1 shrink-0">
-                <button
-                  onClick={() => copyAccessDetails(sh)}
-                  className="text-[10px] font-semibold px-2 py-1 rounded-md bg-sage-50 text-sage-700 hover:bg-sage-100 ring-1 ring-sage-200 flex items-center gap-1"
-                  title="Copy a one-paste sign-in message"
-                >
-                  {copiedId === sh.id ? <Check size={10} /> : <Copy size={10} />}
-                  {copiedId === sh.id ? 'Copied' : 'Copy access'}
-                </button>
-                <button
-                  onClick={() => handleRequestRemove(sh)}
-                  disabled={hasPending}
-                  className="w-6 h-6 rounded-full bg-red-50 hover:bg-red-100 text-red-400 flex items-center justify-center disabled:opacity-30 transition-colors"
-                  title="Request removal (needs another organiser to approve)"
-                >
-                  <Trash2 size={10} />
-                </button>
-              </div>
+
+              {/* Restrict-view editor — collapsed by default */}
+              {editing && (
+                <div className="mt-2 pt-2 border-t border-stone-100 space-y-2.5">
+                  <p className="text-[10px] text-stone-500 leading-relaxed">
+                    Restricting view is for <strong>discretion</strong> — surprises, internal pricing, etc. It's not security; anyone with browser dev tools could still inspect the data.
+                  </p>
+
+                  {/* Hide budget */}
+                  <label className="flex items-center gap-2 text-xs text-stone-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={!!sh.hideBudget}
+                      onChange={(e) => updateStakeholder(event.id, sh.id, { hideBudget: e.target.checked })}
+                      className="w-4 h-4 rounded border-stone-300 text-amber-500 focus:ring-amber-400"
+                    />
+                    Hide the event budget figure from {sh.name.split(' ')[0]}
+                  </label>
+
+                  {/* Hide stages */}
+                  {allStages.length > 0 && (
+                    <div>
+                      <p className="text-[10px] font-semibold text-stone-500 uppercase tracking-widest mb-1.5">
+                        Hide specific stages ({sh.hiddenStageIds?.length ?? 0} of {allStages.length})
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 max-h-48 overflow-y-auto rounded-lg bg-stone-50 ring-1 ring-stone-100 p-2">
+                        {allStages.map((stage) => {
+                          const isHidden = sh.hiddenStageIds?.includes(stage.id) ?? false
+                          return (
+                            <label key={stage.id} className="flex items-center gap-1.5 text-[11px] text-stone-700 cursor-pointer hover:bg-white rounded px-1 py-0.5">
+                              <input
+                                type="checkbox"
+                                checked={isHidden}
+                                onChange={(e) => {
+                                  const next = new Set(sh.hiddenStageIds ?? [])
+                                  if (e.target.checked) next.add(stage.id)
+                                  else next.delete(stage.id)
+                                  updateStakeholder(event.id, sh.id, { hiddenStageIds: [...next] })
+                                }}
+                                className="w-3 h-3 rounded border-stone-300 text-amber-500 focus:ring-amber-400"
+                              />
+                              <span className="truncate">{stage.label}</span>
+                            </label>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )
         })}
@@ -1300,6 +1416,11 @@ function EventCard({ event }: { event: Event }) {
                     )}
                   </p>
                 </div>
+
+                {/* Per-stakeholder approval log — only render if at least one concept has any votes */}
+                {event.concepts.some((c) => (c.approvals?.length ?? 0) > 0) && (
+                  <ConceptApprovalLog event={event} />
+                )}
               </div>
             )}
 

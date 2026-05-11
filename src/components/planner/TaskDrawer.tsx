@@ -284,12 +284,27 @@ export function TaskDrawer({ event, ceremony, sub, task, onClose }: TaskDrawerPr
     setOptionsError('')
     setGeneratingOptions(true)
     try {
+      // Feed the AI the curated Brief (style, palette, dietary, music,
+      // dislikes, theme, notes) plus event facts. Chat-extracted
+      // preferences/concerns are passed as supplementary signal but the
+      // brief is the source of truth — exactly what the planner has
+      // agreed with the client, not messy intermediate chat content.
+      const prefs = event.preferences
       const suggestions = await suggestTaskOptions(
         {
           taskLabel: task.label,
           eventType: event.type,
           ceremonyName: ceremony.name,
           budget: event.budget,
+          guestCount: event.guestCount,
+          theme: event.theme,
+          styleKeywords: prefs?.style,
+          colorPalette: prefs?.colorPalette,
+          dietary: prefs?.dietary,
+          musicGenre: prefs?.musicGenre,
+          dislikes: prefs?.dislikes,
+          brief: prefs?.notes,
+          // Supplementary: extracted from chat if any insight extraction has run
           preferences: aggregateInsight.preferences,
           concerns:    aggregateInsight.concerns,
           existingTitles: task.options.map((o) => o.title),

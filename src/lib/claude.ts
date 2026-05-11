@@ -383,7 +383,24 @@ export interface OptionSuggestionContext {
   eventType: string
   ceremonyName?: string
   budget?: number
+  guestCount?: number
+  /** Overall event theme from the Brief (e.g. "Romantic Garden Luxe"). */
+  theme?: string
+  /** Style adjectives picked on the Briefs page. */
+  styleKeywords?: string[]
+  /** Colour palette set on the Briefs page. */
+  colorPalette?: string[]
+  /** Dietary requirements captured on the Briefs page. */
+  dietary?: string[]
+  /** Music preferences captured on the Briefs page. */
+  musicGenre?: string[]
+  /** Things the client explicitly does NOT want (from the Brief). */
+  dislikes?: string[]
+  /** Free-text notes captured on the Briefs page. */
+  brief?: string
+  /** Preferences extracted by AI insights from chat messages (optional refinement). */
   preferences?: string[]
+  /** Concerns extracted by AI insights from chat messages (optional refinement). */
   concerns?: string[]
   /** Existing option titles so AI doesn't suggest duplicates. */
   existingTitles?: string[]
@@ -391,24 +408,54 @@ export interface OptionSuggestionContext {
 
 /**
  * Generate 3–5 concrete option ideas for the Recommendations phase.
+ *
+ * Inputs are the structured Brief captured on the Briefs page (style,
+ * palette, dietary, music, dislikes, theme, notes) plus event-level
+ * facts (budget, guest count, ceremony). We deliberately do NOT feed in
+ * raw chat content — the brief is the curated, final source of truth
+ * the planner has agreed with the client; the chat is messy interim
+ * back-and-forth. Optionally extracted preferences/concerns from chat
+ * are passed too but treated as supplementary.
+ *
  * Throws on failure (no useful local fallback for "specific vendor names").
  */
 export async function suggestTaskOptions(
   ctx: OptionSuggestionContext,
   apiKey: string,
 ): Promise<ParsedOptionSuggestion[]> {
+  // Build the brief block by joining only the fields that are actually
+  // populated, so we don't waste tokens on empty rows.
+  const briefLines: string[] = []
+  if (ctx.theme)                   briefLines.push(`- Overall theme: ${ctx.theme}`)
+  if (ctx.styleKeywords?.length)   briefLines.push(`- Style: ${ctx.styleKeywords.join(', ')}`)
+  if (ctx.colorPalette?.length)    briefLines.push(`- Colour palette: ${ctx.colorPalette.join(', ')}`)
+  if (ctx.dietary?.length)         briefLines.push(`- Dietary requirements: ${ctx.dietary.join(', ')}`)
+  if (ctx.musicGenre?.length)      briefLines.push(`- Music preferences: ${ctx.musicGenre.join(', ')}`)
+  if (ctx.dislikes?.length)        briefLines.push(`- Client dislikes (avoid these): ${ctx.dislikes.join(', ')}`)
+  if (ctx.brief)                   briefLines.push(`- Additional brief notes: ${ctx.brief}`)
+  const briefBlock = briefLines.length > 0
+    ? `\nClient Brief (curated, treat as source of truth):\n${briefLines.join('\n')}`
+    : '\nClient Brief: (no structured brief captured yet — work from event facts alone)'
+
+  const chatHints: string[] = []
+  if (ctx.preferences?.length) chatHints.push(`- Preferences picked up from chat: ${ctx.preferences.join('; ')}`)
+  if (ctx.concerns?.length)    chatHints.push(`- Concerns picked up from chat: ${ctx.concerns.join('; ')}`)
+  const chatBlock = chatHints.length > 0
+    ? `\n\nSupplementary signal from chat (use only to refine, brief takes priority):\n${chatHints.join('\n')}`
+    : ''
+
   const prompt = `You are an experienced event planner shortlisting concrete options for a task.
 
-Context:
+Event facts:
 - Event type: ${ctx.eventType}
 - Ceremony / phase: ${ctx.ceremonyName ?? 'n/a'}
 - Task: ${ctx.taskLabel}
 ${ctx.budget ? `- Total event budget: $${ctx.budget.toLocaleString()}` : ''}
-${ctx.preferences?.length ? `- Client preferences: ${ctx.preferences.join('; ')}` : ''}
-${ctx.concerns?.length ? `- Client concerns: ${ctx.concerns.join('; ')}` : ''}
-${ctx.existingTitles?.length ? `- Already shortlisted (don't repeat): ${ctx.existingTitles.join(', ')}` : ''}
+${ctx.guestCount ? `- Guest count: ${ctx.guestCount}` : ''}
+${briefBlock}${chatBlock}
 
-Suggest 4 distinct option ideas the planner could present to the client. Each should be a specific concept (e.g. a venue type, vendor archetype, package, or approach), with realistic estimated cost.
+${ctx.existingTitles?.length ? `Already shortlisted (do NOT repeat): ${ctx.existingTitles.join(', ')}\n` : ''}
+Suggest 4 distinct option ideas the planner could present to the client. Each should be a specific concept (e.g. a venue type, vendor archetype, package, or approach), with realistic estimated cost grounded in the budget and guest count. Honour the colour palette and theme; respect dietary and dislike constraints.
 
 Return ONLY a JSON array — no markdown, no commentary. Each item:
 {

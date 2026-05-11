@@ -62,8 +62,11 @@ export function TaskDrawer({ event, ceremony, sub, task, onClose }: TaskDrawerPr
     setTaskPhase, addTaskMessage, deleteTaskMessage, updateTaskMessage,
     addTaskOption, updateTaskOption, deleteTaskOption,
     toggleStageTask, updateStageTask, deleteStageTask,
-    addNotification,
+    addNotification, plannerProfile,
   } = useStore()
+  // Used for the planner's own avatar initials and to attribute new messages
+  // by name rather than just the literal label "You".
+  const plannerName = plannerProfile.name?.trim() || 'You'
 
   const [activePhase, setActivePhase] = useState<TaskPhase>(task.currentPhase)
   const [channelFilter, setChannelFilter] = useState<MessageChannel | 'all'>('all')
@@ -167,7 +170,14 @@ export function TaskDrawer({ event, ceremony, sub, task, onClose }: TaskDrawerPr
     const message: TaskMessage = {
       id,
       author: draftAuthor,
-      authorName: draftAuthor === 'client' ? (draftAuthorName || event.clientName) : undefined,
+      // Always attach the displayed name. For 'planner' that's the
+      // planner's profile name (so the avatar reads PA/MR rather than YO);
+      // for 'client'/'vendor' it's whatever the planner picked or typed.
+      authorName: draftAuthor === 'client'
+        ? (draftAuthorName || event.clientName)
+        : draftAuthor === 'planner'
+          ? plannerName
+          : (draftAuthorName || undefined),
       channel: draftChannel,
       content: text,
       timestamp: new Date().toISOString(),
@@ -630,6 +640,7 @@ export function TaskDrawer({ event, ceremony, sub, task, onClose }: TaskDrawerPr
                   <MessageBubble
                     key={m.id}
                     message={m}
+                    plannerName={plannerName}
                     onDelete={() => deleteTaskMessage(event.id, ceremony.id, sub.id, task.id, m.id)}
                   />
                 ))}
@@ -966,17 +977,35 @@ function PhaseIntroCard({ phase }: { phase: TaskPhase }) {
   )
 }
 
-function MessageBubble({ message, onDelete }: { message: TaskMessage; onDelete: () => void }) {
+function MessageBubble({ message, onDelete, plannerName }: { message: TaskMessage; onDelete: () => void; plannerName: string }) {
   const ch = CHANNEL_META[message.channel] ?? CHANNEL_META['in-app']
   const author = AUTHOR_META[message.author]
   const fromClient = message.author === 'client'
   const isNote = message.channel === 'note'
   const isEmail = message.channel === 'email'
 
+  // Resolve the display name with the right fallback chain:
+  //   - explicit message.authorName wins (for client/vendor logged messages)
+  //   - planner messages without one fall back to the planner's profile name
+  //   - everything else falls back to the author label ("Client", "Vendor", …)
+  // This is what stops the avatar showing "YO" for planner messages.
+  const displayName = message.authorName
+    ?? (message.author === 'planner' ? plannerName : author.label)
+
+  // Initials: take the first letter of each of the first two words. This
+  // gives "MR" for "Maddy Reed" instead of the dumb "YO" first-two-chars.
+  const initials = displayName
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() ?? '')
+    .join('')
+    || displayName.slice(0, 2).toUpperCase()
+
   return (
     <div className={cn('group flex gap-2.5', fromClient ? '' : 'flex-row-reverse')}>
       <div className={cn('w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0', author.color)}>
-        {(message.authorName ?? author.label).slice(0, 2).toUpperCase()}
+        {initials}
       </div>
 
       <div className={cn('flex-1 min-w-0', fromClient ? '' : 'flex flex-col items-end')}>
@@ -1007,7 +1036,7 @@ function MessageBubble({ message, onDelete }: { message: TaskMessage; onDelete: 
               @{message.mentions.length}
             </span>
           )}
-          <span className="text-[10px] text-stone-500 font-medium">{message.authorName ?? author.label}</span>
+          <span className="text-[10px] text-stone-500 font-medium">{displayName}</span>
           <span className="text-[10px] text-stone-300">· {timeAgo(message.timestamp)}</span>
           <button
             onClick={onDelete}

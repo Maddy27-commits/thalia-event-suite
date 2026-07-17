@@ -1,2 +1,17 @@
-# Cloudflare Pages — SPA routing is handled via 404.html (see package.json build script).
-# Pages Functions in functions/ are routed automatically — no rules needed here.
+# Cloudflare Pages — SPA client-side routing fallback.
+#
+# Without an explicit rule here, Cloudflare falls back to serving 404.html
+# for any unmatched path, but it does so with an HTTP 404 status code even
+# though the body is the correct app shell. Browsers render the body anyway
+# (so manual navigation looks fine), but anything that checks the status
+# code first — curl, uptime checks, social-card unfurlers (LinkedIn,
+# Slack, iMessage), search engine crawlers — treats the page as broken and
+# refuses to render or index it. A shared deep link like /welcome would
+# silently 404 for every one of those.
+#
+# This explicit rule rewrites any unmatched path to index.html and forces
+# a 200 status, so /welcome (and any other client-side route) resolves
+# correctly regardless of how it's requested. Pages Functions under
+# functions/ are matched before _redirects is evaluated, so /api/* routes
+# are unaffected by this catch-all.
+/*    /index.html   200

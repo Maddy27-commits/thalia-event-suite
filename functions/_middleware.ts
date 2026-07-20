@@ -54,11 +54,24 @@ export const onRequest: PagesFunction<Env> = async ({ request, next, env }) => {
   // No real file at this path — this is a client-side route. Serve the
   // SPA shell instead, forcing a 200 status so the page is treated as
   // real content by anything that checks the HTTP status before the body.
-  const indexRequest = new Request(new URL('/index.html', request.url), request)
+  //
+  // IMPORTANT: fetch the ROOT path ("/"), not "/index.html". Cloudflare
+  // Pages automatically 308-redirects "/index.html" to "/", so fetching
+  // "/index.html" via ASSETS returns that redirect (empty body + a
+  // `Location: /` header), not the HTML. Passing that through with a
+  // forced 200 produced a 200-with-empty-body response — the exact bug
+  // this replaces. Fetching "/" returns the real app-shell HTML.
+  const indexRequest = new Request(new URL('/', request.url), request)
   const indexResponse = await env.ASSETS.fetch(indexRequest)
+
+  // Copy headers but drop any Location header that might ride along, so a
+  // client never sees a redirect header on a 200 response.
+  const headers = new Headers(indexResponse.headers)
+  headers.delete('location')
+
   return new Response(indexResponse.body, {
     status: 200,
     statusText: 'OK',
-    headers: indexResponse.headers,
+    headers,
   })
 }
